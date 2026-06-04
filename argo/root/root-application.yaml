@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/electgo/manifest
+    targetRevision: main
+    path: argo
+    directory:
+      recurse: true
+      # Match only Argo CRs; skip helm values files, READMEs, instructions
+      include: '{*-application.yaml,projects/*.yaml}'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  # NOT auto-synced yet — applying this would overwrite drift on live Apps
+  # (most have CLI-set inline helm.parameters carrying DB creds + env.secret.*).
+  # Migration plan before flipping to automated:
+  #   1. Move all env.secret.* + DB creds out of helm.parameters into Kubernetes
+  #      Secrets (envFrom in chart), referenced from values-{env}.yaml only by name.
+  #   2. For each live App, verify .spec.source.helm.parameters is empty (or only
+  #      image.repository + image.tag managed by image-updater write-back=argocd).
+  #   3. Then add automated.selfHeal here.
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      jsonPointers:
+        # Don't fight image-updater inline writes or CLI-managed env params
+        - /spec/source/helm/parameters
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true

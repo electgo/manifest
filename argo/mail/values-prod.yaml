@@ -1,0 +1,174 @@
+# Mailu Helm chart values for production EKS (electgo-production)
+# Chart: mailu/mailu 2.1.4 (Mailu 2024.06)
+# Docs: https://mailu.io/master/kubernetes/index.html
+#
+# After first deploy, create admin account:
+#   kubectl -n mail exec -it deploy/mailu-admin -- flask mailu admin <admin@electgo-dev.com> <password>
+#
+# DNS records to publish on JagoanHosting after rollout (see k8s/production/services/mail/README.md):
+#   A     mail.electgo-dev.com           -> <NLB EIP>
+#   A     mta.electgo-dev.com            -> 15.232.19.74
+#   MX    electgo-dev.com                -> mail.electgo-dev.com (prio 10)
+#   TXT   electgo-dev.com                -> "v=spf1 ip4:15.232.19.74 a:mta.electgo-dev.com mx ~all"
+#   TXT   dkim._domainkey.electgo-dev.com -> <from Mailu admin UI after first start>
+#   TXT   _dmarc.electgo-dev.com         -> "v=DMARC1; p=quarantine; rua=mailto:postmaster@electgo-dev.com"
+
+domain: electgo-dev.com
+hostnames:
+  - mail.electgo-dev.com
+
+# Mail server identity for outbound HELO (must match PTR on 15.232.19.74).
+mailuMainOptions:
+  hostnames: mail.electgo-dev.com
+  postmaster: postmaster
+  secretKey: REPLACED_BY_SECRET  # see existingSecret below
+  authRatelimitIp: 60/hour
+  authRatelimitUser: 100/day
+  messageSizeLimitInMegabytes: 50
+  welcome: false
+  websiteName: ElectGo Mail
+  defaultSpamThreshold: 80
+  # Postfix myhostname override — outbound HELO advertises this.
+  # NAT GW EIP 15.232.19.74 PTR must resolve to this hostname.
+  recipientDelimiter: "+"
+
+existingSecret: mailu-secret
+
+# --- Subnet allowlists (EKS pod CIDR + service CIDR) ---
+subnet: 10.20.0.0/16
+subnet6: ""
+
+# --- Persistent storage (EFS, RWX, shared by all Mailu pods) ---
+persistence:
+  single_pvc: true
+  size: 5Gi
+  storageClass: efs-app-1000
+  accessMode: ReadWriteMany
+  claimNameOverride: mailu-data
+
+# --- Database: external Postgres (Crunchy/Percona PG operator) ---
+database:
+  type: postgresql
+  roundcubeType: postgresql
+  externalDatabase:
+    host: postgres-main-pg-db-primary.database.svc.cluster.local
+    port: 5432
+    user: mailu
+    db: mailu
+    roundcubeUser: mailu
+    roundcubeDB: mailu_roundcube
+    existingSecret: mailu-secret
+    existingSecretPasswordKey: db-password
+    existingSecretRoundcubePasswordKey: db-password
+
+# --- Front (nginx) — terminates TLS, proxies mail protocols, serves admin/webmail ---
+front:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  # NodePort by default; use externalService below to publish via NLB.
+  externalService:
+    enabled: true
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: nlb
+      service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+      service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+      # NOTE: replace with the actual EIP allocation id once allocated (see README).
+      # NLB EIP 15.232.8.105 (allocated 2026-05-15, eipalloc-0f37cc40397c47c35)
+      service.beta.kubernetes.io/aws-load-balancer-eip-allocations: eipalloc-0f37cc40397c47c35
+      service.beta.kubernetes.io/aws-load-balancer-name: electgo-mail-nlb
+    externalTrafficPolicy: Local
+  # ports exposed by front:
+  #   25 smtp / 465 smtps / 587 submission / 143 imap / 993 imaps / 4190 sieve / 80 http / 443 https
+  controller:
+    annotations:
+      reloader.stakater.com/auto: "true"
+
+# Disable admin/webmail nginx Ingress; NLB exposes 80/443 directly (Mailu front handles cert+routing).
+ingress:
+  enabled: false
+
+# --- Admin UI + Roundcube webmail ---
+admin:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+webmail:
+  enabled: true
+  type: roundcube
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+# --- Postfix (SMTP) ---
+postfix:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  # Outbound relay: NONE — Postfix sends directly via NAT GW (15.232.19.74 once port 25 unblocked).
+  relayhost: ""
+
+# --- Dovecot (IMAP) ---
+dovecot:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# --- Rspamd (anti-spam) ---
+rspamd:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# --- Redis (Mailu session/queue store) ---
+redis:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+# --- Anti-virus (ClamAV) — heavy, disable for low-volume internal mail ---
+clamav:
+  enabled: false
+
+# --- Fetchmail (pull from external POP/IMAP) — not needed ---
+fetchmail:
+  enabled: false
+
+# --- TLS — let Mailu front handle Let's Encrypt via HTTP-01 (port 80 on NLB must be public) ---
+certmanager:
+  enabled: false
+tls:
+  flavor: letsencrypt
+  letsencryptEmail: ptdigitalsolusigrup@gmail.com
+
+# --- Node affinity: pin to EKS workers (ARM64) ---
+nodeSelector:
+  kubernetes.io/arch: arm64
+
+# --- Mailu does not publish multi-arch images for every component.
+#     If a sub-image is amd64-only, override with an arm64 tag here, or remove nodeSelector.

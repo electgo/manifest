@@ -1,0 +1,190 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    policies.kyverno.io/category: Observability
+    policies.kyverno.io/description: 'Injects a busybox sidecar that tails app-written *.log files to stdout so the existing Promtail DaemonSet ships them to Loki. Targets PIM namespaces with writable PVCs. n8n excluded — uses dedicated promtail sidecar instead.'
+    policies.kyverno.io/title: ElectGo file-log shipper
+  name: electgo-log-shipper
+spec:
+  admission: true
+  background: false
+  emitWarning: false
+  rules:
+  - match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - pim-bucket-upload
+    mutate:
+      patchStrategicMerge:
+        spec:
+          initContainers:
+          - args:
+            - "trap 'kill 0' TERM INT\necho \"[log-shipper] boot $(date -Iseconds)\"\nwhile :; do\n  for f in $(find /logs -type f -name '*.log' 2>/dev/null); do\n    if ! pgrep -f \"tail.*$f$\" >/dev/null 2>&1; then\n      echo \"[log-shipper] follow $f\"\n      tail -n 50 -F \"$f\" &\n    fi\n  done\n  sleep 30\ndone\n"
+            command:
+            - /bin/sh
+            - -c
+            image: busybox:1.36
+            imagePullPolicy: IfNotPresent
+            name: log-shipper
+            resources:
+              limits:
+                memory: 64Mi
+              requests:
+                cpu: 10m
+                memory: 16Mi
+            restartPolicy: Always
+            volumeMounts:
+            - mountPath: /logs
+              name: writable
+              readOnly: true
+    name: inject-pim-bucket-upload
+    preconditions:
+      all:
+      - key: log-shipper
+        operator: AnyNotIn
+        value: '{{ request.object.spec.containers[].name || `[]` }}'
+      - key: log-shipper
+        operator: AnyNotIn
+        value: '{{ request.object.spec.initContainers[].name || `[]` }}'
+      - key: writable
+        operator: AnyIn
+        value: '{{ request.object.spec.volumes[].name || `[]` }}'
+    skipBackgroundRequests: true
+  - match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - pim-chatbot
+    mutate:
+      patchStrategicMerge:
+        spec:
+          initContainers:
+          - args:
+            - "trap 'kill 0' TERM INT\necho \"[log-shipper] boot $(date -Iseconds)\"\nwhile :; do\n  for f in $(find /logs -type f -name '*.log' 2>/dev/null); do\n    if ! pgrep -f \"tail.*$f$\" >/dev/null 2>&1; then\n      echo \"[log-shipper] follow $f\"\n      tail -n 50 -F \"$f\" &\n    fi\n  done\n  sleep 30\ndone\n"
+            command:
+            - /bin/sh
+            - -c
+            image: busybox:1.36
+            imagePullPolicy: IfNotPresent
+            name: log-shipper
+            resources:
+              limits:
+                memory: 64Mi
+              requests:
+                cpu: 10m
+                memory: 16Mi
+            restartPolicy: Always
+            volumeMounts:
+            - mountPath: /logs
+              name: writable
+              readOnly: true
+    name: inject-pim-chatbot
+    preconditions:
+      all:
+      - key: log-shipper
+        operator: AnyNotIn
+        value: '{{ request.object.spec.containers[].name || `[]` }}'
+      - key: log-shipper
+        operator: AnyNotIn
+        value: '{{ request.object.spec.initContainers[].name || `[]` }}'
+      - key: writable
+        operator: AnyIn
+        value: '{{ request.object.spec.volumes[].name || `[]` }}'
+    skipBackgroundRequests: true
+  - match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - pim-master
+    mutate:
+      patchStrategicMerge:
+        spec:
+          initContainers:
+          - args:
+            - "trap 'kill 0' TERM INT\necho \"[log-shipper] boot $(date -Iseconds)\"\nwhile :; do\n  for f in $(find /logs -type f -name '*.log' 2>/dev/null); do\n    if ! pgrep -f \"tail.*$f$\" >/dev/null 2>&1; then\n      echo \"[log-shipper] follow $f\"\n      tail -n 50 -F \"$f\" &\n    fi\n  done\n  sleep 30\ndone\n"
+            command:
+            - /bin/sh
+            - -c
+            image: busybox:1.36
+            imagePullPolicy: IfNotPresent
+            name: log-shipper
+            resources:
+              limits:
+                memory: 64Mi
+              requests:
+                cpu: 10m
+                memory: 16Mi
+            restartPolicy: Always
+            volumeMounts:
+            - mountPath: /logs
+              name: writable
+              readOnly: true
+    name: inject-pim-master
+    preconditions:
+      all:
+      - key: log-shipper
+        operator: AnyNotIn
+        value: '{{ request.object.spec.containers[].name || `[]` }}'
+      - key: log-shipper
+        operator: AnyNotIn
+        value: '{{ request.object.spec.initContainers[].name || `[]` }}'
+      - key: writable
+        operator: AnyIn
+        value: '{{ request.object.spec.volumes[].name || `[]` }}'
+    skipBackgroundRequests: true
+  - match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - pim-partners-bundling
+    mutate:
+      patchStrategicMerge:
+        spec:
+          initContainers:
+          - args:
+            - "trap 'kill 0' TERM INT\necho \"[log-shipper] boot $(date -Iseconds)\"\nwhile :; do\n  for f in $(find /logs -type f -name '*.log' 2>/dev/null); do\n    if ! pgrep -f \"tail.*$f$\" >/dev/null 2>&1; then\n      echo \"[log-shipper] follow $f\"\n      tail -n 50 -F \"$f\" &\n    fi\n  done\n  sleep 30\ndone\n"
+            command:
+            - /bin/sh
+            - -c
+            image: busybox:1.36
+            imagePullPolicy: IfNotPresent
+            name: log-shipper
+            resources:
+              limits:
+                memory: 64Mi
+              requests:
+                cpu: 10m
+                memory: 16Mi
+            restartPolicy: Always
+            volumeMounts:
+            - mountPath: /logs/partners
+              name: partners-writable
+              readOnly: true
+            - mountPath: /logs/punchout
+              name: punchout-writable
+              readOnly: true
+    name: inject-pim-partners-bundling
+    preconditions:
+      all:
+      - key: log-shipper
+        operator: AnyNotIn
+        value: '{{ request.object.spec.containers[].name || `[]` }}'
+      - key: log-shipper
+        operator: AnyNotIn
+        value: '{{ request.object.spec.initContainers[].name || `[]` }}'
+      - key: partners-writable
+        operator: AnyIn
+        value: '{{ request.object.spec.volumes[].name || `[]` }}'
+    skipBackgroundRequests: true
+  validationFailureAction: Audit

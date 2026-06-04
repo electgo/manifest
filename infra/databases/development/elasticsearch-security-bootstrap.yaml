@@ -1,0 +1,145 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-security-bootstrap-script
+  namespace: database
+data:
+  bootstrap.sh: |
+    #!/bin/sh
+    set -eu
+
+    ES_URL="${ES_URL:-http://elasticsearch.database.svc.cluster.local:9200}"
+    ROLE_NAME="egchatbot_dev"
+    EGCHATBOT_USER="${EGCHATBOT_USER:-egchatbot_dev}"
+
+    auth_header() {
+      printf 'Authorization: Basic %s' "$(printf '%s' "${ELASTIC_USER}:${ELASTIC_PASSWORD}" | base64 | tr -d '\n')"
+    }
+
+    request() {
+      method="$1"; path="$2"; data="${3:-}"
+      if [ -n "$data" ]; then
+        curl -sS -o /tmp/resp.json -w '%{http_code}' \
+          -X "$method" -H "$(auth_header)" -H 'Content-Type: application/json' \
+          --data "$data" "${ES_URL}${path}"
+      else
+        curl -sS -o /tmp/resp.json -w '%{http_code}' \
+          -X "$method" -H "$(auth_header)" "${ES_URL}${path}"
+      fi
+    }
+
+    wait_for_es() {
+      i=0
+      while [ $i -lt 60 ]; do
+        code=$(curl -sS -o /dev/null -w '%{http_code}' -H "$(auth_header)" "${ES_URL}/_cluster/health" || true)
+        if [ "$code" = "200" ]; then
+          echo "elasticsearch ready (attempt $((i+1)))"
+          return 0
+        fi
+        i=$((i+1))
+        echo "waiting for elasticsearch (attempt $i, code=$code)..."
+        sleep 5
+      done
+      echo "elasticsearch not ready after 5 min"
+      return 1
+    }
+
+    upsert_role() {
+      body='{"cluster":["monitor"],"indices":[{"names":["egchatbot_*_dev","*_dev"],"privileges":["read","write","view_index_metadata","create_index","manage","delete_index"]}]}'
+      code=$(request PUT "/_security/role/${ROLE_NAME}" "$body")
+      if [ "$code" = "200" ]; then
+        echo "role ${ROLE_NAME} created"
+        return 0
+      fi
+      if grep -q 'role_already_exists_exception' /tmp/resp.json 2>/dev/null; then
+        request DELETE "/_security/role/${ROLE_NAME}" >/dev/null || true
+        code=$(request PUT "/_security/role/${ROLE_NAME}" "$body")
+        if [ "$code" = "200" ]; then
+          echo "role ${ROLE_NAME} updated"
+          return 0
+        fi
+      fi
+      echo "role upsert failed: ${code} $(cat /tmp/resp.json)"
+      return 1
+    }
+
+    upsert_user() {
+      body="{\"password\":\"${EGCHATBOT_PASSWORD}\",\"roles\":[\"${ROLE_NAME}\"]}"
+      code=$(request PUT "/_security/user/${EGCHATBOT_USER}" "$body")
+      if [ "$code" = "200" ]; then
+        echo "user ${EGCHATBOT_USER} created"
+        return 0
+      fi
+      if grep -q 'user_already_exists_exception' /tmp/resp.json 2>/dev/null; then
+        request DELETE "/_security/user/${EGCHATBOT_USER}" >/dev/null || true
+        code=$(request PUT "/_security/user/${EGCHATBOT_USER}" "$body")
+        if [ "$code" = "200" ]; then
+          echo "user ${EGCHATBOT_USER} updated"
+          return 0
+        fi
+      fi
+      echo "user upsert failed: ${code} $(cat /tmp/resp.json)"
+      return 1
+    }
+
+    echo "bootstrap: target=${ES_URL} user=${EGCHATBOT_USER} role=${ROLE_NAME}"
+    wait_for_es
+    upsert_role
+    upsert_user
+    echo "bootstrap complete"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: elasticsearch-security-bootstrap
+  namespace: database
+  labels:
+    app.kubernetes.io/name: elasticsearch-bootstrap
+    app.kubernetes.io/component: security
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: elasticsearch-bootstrap
+        app.kubernetes.io/component: security
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: bootstrap
+          image: curlimages/curl:8.10.1
+          env:
+            - name: ES_URL
+              value: "http://elasticsearch.database.svc.cluster.local:9200"
+            - name: ELASTIC_USER
+              value: "elastic"
+            - name: ELASTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-credentials
+                  key: elastic-password
+            - name: EGCHATBOT_USER
+              value: "egchatbot_dev"
+            - name: EGCHATBOT_PASSWORD
+              value: "AnEcDbyONMCYA0EUf2tzkBlU"
+          command: ["sh", "/scripts/bootstrap.sh"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: scripts
+          configMap:
+            name: elasticsearch-security-bootstrap-script
+            defaultMode: 0o755

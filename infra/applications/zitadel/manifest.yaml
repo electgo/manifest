@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zitadel
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zitadel-db
+  namespace: zitadel
+type: Opaque
+stringData:
+  ZITADEL_DATABASE_POSTGRES_DSN: "postgresql://zitadel:%24%2B%25-%29A4P%2C%2C%3D4b2tW%28cHivEASK@management-postgresql.management-data.svc.cluster.local:5432/zitadelv3?sslmode=disable"
+  ZITADEL_EXTERNALSECURE: "true"
+  ZITADEL_TLS_ENABLED: "false"
+  ZITADEL_MASTERKEY: "MasterkeyNeedsToBe32CharsLong000"
+  ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: "admin"
+  ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: "ZitadelAdmin2026!"
+  ZITADEL_PORT: "8080"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zitadel-config
+  namespace: zitadel
+data:
+  ZITADEL_EXTERNALDOMAIN: "zitadel.electgo.com"
+  ZITADEL_EXTERNALPORT: "443"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zitadel
+  namespace: zitadel
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: zitadel.electgo.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: zitadel
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - zitadel.electgo.com
+      secretName: zitadel-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zitadel
+  namespace: zitadel
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: zitadel
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zitadel
+  namespace: zitadel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zitadel
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: zitadel
+    spec:
+      nodeSelector:
+        workload: admin
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: setup
+          image: ghcr.io/zitadel/zitadel:v4.15.0
+          command: ["/app/zitadel", "setup", "--masterkeyFromEnv", "--tlsMode", "external"]
+          envFrom:
+            - secretRef:
+                name: zitadel-db
+            - configMapRef:
+                name: zitadel-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      containers:
+        - name: zitadel
+          image: ghcr.io/zitadel/zitadel:v4.15.0
+          command: ["/app/zitadel", "start", "--masterkeyFromEnv", "--tlsMode", "external", "--externalPort", "443", "--externalDomain", "zitadel.electgo.com"]
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: zitadel-db
+            - configMapRef:
+                name: zitadel-config
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 2
+              memory: 4Gi
+          readinessProbe:
+            httpGet:
+              path: /debug/healthz
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /debug/healthz
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10

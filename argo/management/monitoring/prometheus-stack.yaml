@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+spec:
+  project: management
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 86.1.0
+    helm:
+      releaseName: prometheus
+      values: |
+        prometheus:
+          prometheusSpec:
+            nodeSelector:
+              workload: observe
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: gp3-encrypted
+                  resources:
+                    requests:
+                      storage: 50Gi
+        grafana:
+          nodeSelector:
+            workload: observe
+          persistence:
+            enabled: true
+            storageClassName: gp3-encrypted
+            size: 10Gi
+        alertmanager:
+          alertmanagerSpec:
+            nodeSelector:
+              workload: observe
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: gp3-encrypted
+                  resources:
+                    requests:
+                      storage: 5Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

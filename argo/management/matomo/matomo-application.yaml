@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: matomo
+  namespace: argocd
+spec:
+  project: management
+  source:
+    repoURL: https://github.com/electgo/manifest.git
+    targetRevision: main
+    path: infra/applications/matomo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: matomo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

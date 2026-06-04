@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rancher
+  namespace: argocd
+spec:
+  project: management
+  source:
+    repoURL: https://releases.rancher.com/server-charts/alpha
+    chart: rancher
+    targetRevision: 2.15.0-alpha8
+    helm:
+      releaseName: rancher
+      values: |
+        hostname: rancher.electgo.com
+        replicas: 1
+        bootstrapPassword: admin
+        ingress:
+          tls:
+            source: secret
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cattle-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

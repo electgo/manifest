@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: management
+  namespace: argocd
+spec:
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  description: Management cluster applications + dev/prod shared infra (databases, observability, etc.)
+  destinations:
+  - namespace: '*'
+    server: https://kubernetes.default.svc
+  - name: development
+    namespace: '*'
+  sourceRepos:
+  - '*'

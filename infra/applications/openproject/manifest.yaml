@@ -1,0 +1,266 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openproject
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openproject-secrets
+  namespace: openproject
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://openproject:zJ9gQi7n5rkl2FK74OcksCg9@management-postgresql.management-data.svc.cluster.local:5432/openproject"
+  SECRET_KEY_BASE: "e8f1c2a3b4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1"
+  OPENPROJECT_HOCUSPOCUS__SECRET: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openproject-config
+  namespace: openproject
+data:
+  RAILS_ENV: "production"
+  NODE_ENV: "production"
+  OPENPROJECT_HOST__: "openproject.electgo.com"
+  OPENPROJECT_HTTPS__: "true"
+  OPENPROJECT_CACHE__MEMCACHED__SERVER: "openproject-memcached:11211"
+  OPENPROJECT_DATABASE__HOST: "management-postgresql.management-data.svc.cluster.local"
+  OPENPROJECT_DATABASE__PORT: "5432"
+  OPENPROJECT_DATABASE__NAME: "openproject"
+  OPENPROJECT_DATABASE__USER: "openproject"
+  OPENPROJECT_ATTACHMENTS__STORAGE: "file"
+  OPENPROJECT_HOCUSPOCUS__ENABLED: "true"
+  OPENPROJECT_HOCUSPOCUS__PORT: "4444"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openproject-web
+  namespace: openproject
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+  selector:
+    app: openproject-web
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openproject-memcached
+  namespace: openproject
+spec:
+  type: ClusterIP
+  ports:
+    - name: memcached
+      port: 11211
+      targetPort: 11211
+  selector:
+    app: openproject-memcached
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openproject-memcached
+  namespace: openproject
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openproject-memcached
+  template:
+    metadata:
+      labels:
+        app: openproject-memcached
+    spec:
+      nodeSelector:
+        workload: data
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: data
+          effect: NoSchedule
+      containers:
+        - name: memcached
+          image: memcached:1.6-alpine
+          ports:
+            - containerPort: 11211
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openproject-web
+  namespace: openproject
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openproject-web
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: openproject-web
+    spec:
+      nodeSelector:
+        workload: data
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: data
+          effect: NoSchedule
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: db-migrate
+          image: openproject/openproject:15
+          command: ["bash", "-c", "bundle exec rake db:migrate"]
+          envFrom:
+            - configMapRef:
+                name: openproject-config
+            - secretRef:
+                name: openproject-secrets
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
+      containers:
+        - name: web
+          image: openproject/openproject:15
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: openproject-config
+            - secretRef:
+                name: openproject-secrets
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: 2
+              memory: 4Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/openproject/assets
+          readinessProbe:
+            httpGet:
+              path: /health_checks/default
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health_checks/default
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            timeoutSeconds: 10
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openproject-worker
+  namespace: openproject
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openproject-worker
+  template:
+    metadata:
+      labels:
+        app: openproject-worker
+    spec:
+      nodeSelector:
+        workload: data
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: data
+          effect: NoSchedule
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: worker
+          image: openproject/openproject:15
+          command: ["bash", "-c", "bundle exec good_job start"]
+          envFrom:
+            - configMapRef:
+                name: openproject-config
+            - secretRef:
+                name: openproject-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openproject-hocuspocus
+  namespace: openproject
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openproject-hocuspocus
+  template:
+    metadata:
+      labels:
+        app: openproject-hocuspocus
+    spec:
+      nodeSelector:
+        workload: data
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: data
+          effect: NoSchedule
+      containers:
+        - name: hocuspocus
+          image: openproject/hocuspocus:latest
+          env:
+            - name: SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: openproject-secrets
+                  key: OPENPROJECT_HOCUSPOCUS__SECRET
+          envFrom:
+            - configMapRef:
+                name: openproject-config
+            - secretRef:
+                name: openproject-secrets
+          ports:
+            - name: collab
+              containerPort: 4444
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi

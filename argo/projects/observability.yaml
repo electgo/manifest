@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: observability
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Cluster observability stack (Prometheus, Loki, Promtail, Kyverno, VPA) across all clusters
+  sourceRepos:
+    - "*"
+  destinations:
+    - name: production
+      namespace: monitoring
+    - name: production
+      namespace: kyverno
+    - name: production
+      namespace: kube-system
+    - name: production
+      namespace: amazon-cloudwatch
+    - name: production
+      namespace: default
+    - name: development
+      namespace: monitoring
+    - name: development
+      namespace: kyverno
+    - name: development
+      namespace: kube-system
+    - name: development
+      namespace: amazon-cloudwatch
+    - name: development
+      namespace: default
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: storage.k8s.io
+      kind: StorageClass
+    - group: scheduling.k8s.io
+      kind: PriorityClass
+    - group: kyverno.io
+      kind: ClusterPolicy
+    - group: kyverno.io
+      kind: Policy
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  orphanedResources:
+    warn: false

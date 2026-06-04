@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pim-bucket-upload-prod
+  namespace: argocd
+spec:
+  project: product
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: pim-bucket-upload-secret
+      namespace: pim-bucket-upload-prod
+      jsonPointers:
+        - /data
+        - /stringData
+  source:
+    repoURL: https://github.com/electgo/pim-bucket-upload.git
+    targetRevision: main
+    path: helm/pim-bucket-upload
+    helm:
+      valueFiles:
+        - values-production.yaml
+  destination:
+    name: production
+    namespace: pim-bucket-upload-prod
+  syncPolicy:
+    # Standby mode: production app is registered but will not auto-sync
+    # until team explicitly runs Sync (or enables automated sync).
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

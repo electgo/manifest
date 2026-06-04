@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pim-chatbot-dev
+  namespace: argocd
+spec:
+  project: product
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: pim-chatbot-env
+      namespace: pim-chatbot-dev
+      jsonPointers:
+        - /data
+        - /stringData
+  source:
+    repoURL: https://github.com/electgo/pim-chatbot
+    targetRevision: develop
+    path: deployments/helm
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-development.yaml
+  destination:
+    name: development
+    namespace: pim-chatbot-dev
+  # Image tag bumped by CI (bump-image-tag job). Manual sync on dev.

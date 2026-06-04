@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: product-ai-enrich-prod
+  namespace: argocd
+spec:
+  project: product
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: product-ai-enrich-secret
+      namespace: product-ai-enrich-prod
+      jsonPointers:
+        - /data
+        - /stringData
+  source:
+    repoURL: https://github.com/dsgid/product-ai-enrich.git
+    targetRevision: main
+    path: helm/product-ai-enrich
+    helm:
+      valueFiles:
+        - values-production.yaml
+  destination:
+    name: production
+    namespace: product-ai-enrich-prod
+  syncPolicy:
+    # Standby mode: production app is registered but will not auto-sync
+    # until team explicitly runs Sync (or enables automated sync).
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

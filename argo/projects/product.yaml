@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: product
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Product (PIM + AI) workloads across all clusters
+  sourceRepos:
+    - "*"
+  destinations:
+    - name: production
+      namespace: pim-*
+    - name: production
+      namespace: product-ai-enrich
+    - name: development
+      namespace: pim-*
+    - name: development
+      namespace: product-ai-enrich
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: storage.k8s.io
+      kind: StorageClass
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  orphanedResources:
+    warn: false

@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pim-partners-dev
+  namespace: argocd
+spec:
+  project: product
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: pim-partners-bundling-secret
+      namespace: pim-partners-bundling
+      jsonPointers:
+        - /data
+        - /stringData
+  source:
+    repoURL: https://github.com/electgo/pim-partners-bundling
+    targetRevision: develop
+    path: helm/pim-partners-bundling
+    helm:
+      valueFiles:
+        - values-development.yaml
+      parameters:
+        - name: ingress.host
+          value: partners.dev.electgo.com
+        - name: ingress.tls.enabled
+          value: "true"
+        - name: ingress.tls.secretName
+          value: dev-services-tls
+  destination:
+    name: development
+    namespace: pim-partners-bundling
+  # Image tag is bumped by CI (bump-image-tag job in pim-partners-bundling
+  # workflow). Sync still manual on dev to give team a moment to inspect builds.
