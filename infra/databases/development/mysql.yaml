@@ -76,4 +76,4 @@ spec:
         storageClassName: gp3-encrypted
         resources:
           requests:
-            storage: 50Gi
+            storage: 25Gi
