@@ -28,12 +28,7 @@ spec:
         app.kubernetes.io/name: redis
     spec:
       nodeSelector:
-        workload: services
-      tolerations:
-        - key: dedicated
-          operator: Equal
-          value: database
-          effect: NoSchedule
+        workload: shares
       containers:
         - name: redis
           image: redis:8
