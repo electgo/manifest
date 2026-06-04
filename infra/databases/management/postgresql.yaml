@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: management-postgresql
-  namespace: management-data
+  namespace: database
 spec:
   type: ClusterIP
   ports:
@@ -16,7 +16,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: management-postgresql
-  namespace: management-data
+  namespace: database
 spec:
   serviceName: management-postgresql
   replicas: 1
