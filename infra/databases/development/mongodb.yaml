@@ -33,7 +33,7 @@ spec:
       tolerations:
         - key: dedicated
           operator: Equal
-          value: services-db
+          value: database
           effect: NoSchedule
       securityContext:
         fsGroup: 999
