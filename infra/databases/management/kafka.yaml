@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: management-kafka
+  name: kafka
   namespace: database
 spec:
   type: ClusterIP
@@ -13,23 +13,23 @@ spec:
       port: 9093
       targetPort: controller
   selector:
-    app: management-kafka
+    app: kafka
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: management-kafka
+  name: kafka
   namespace: database
 spec:
-  serviceName: management-kafka
+  serviceName: kafka
   replicas: 1
   selector:
     matchLabels:
-      app: management-kafka
+      app: kafka
   template:
     metadata:
       labels:
-        app: management-kafka
+        app: kafka
     spec:
       nodeSelector:
         workload: store
@@ -51,7 +51,7 @@ spec:
               containerPort: 9093
           env:
             - name: CLUSTER_ID
-              value: electgo-management-kafka-0001
+              value: electgo-kafka-0001
             - name: KAFKA_NODE_ID
               value: "1"
             - name: KAFKA_PROCESS_ROLES
@@ -59,13 +59,13 @@ spec:
             - name: KAFKA_LISTENERS
               value: PLAINTEXT://:9092,CONTROLLER://:9093
             - name: KAFKA_ADVERTISED_LISTENERS
-              value: PLAINTEXT://management-kafka.database.svc.cluster.local:9092
+              value: PLAINTEXT://kafka.database.svc.cluster.local:9092
             - name: KAFKA_CONTROLLER_LISTENER_NAMES
               value: CONTROLLER
             - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
               value: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
             - name: KAFKA_CONTROLLER_QUORUM_VOTERS
-              value: 1@management-kafka-0.management-kafka.database.svc.cluster.local:9093
+              value: 1@kafka-0.kafka.database.svc.cluster.local:9093
             - name: KAFKA_LOG_DIRS
               value: /var/lib/kafka/data
             - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
