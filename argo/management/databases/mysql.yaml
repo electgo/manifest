@@ -13,7 +13,7 @@ spec:
       include: '*.yaml'
   destination:
     server: https://kubernetes.default.svc
-    namespace: management-data
+    namespace: database
   syncPolicy:
     automated:
       prune: true
