@@ -48,9 +48,11 @@ spec:
                 name: mysql
           args:
             - --max-allowed-packet=256M
+            - --binlog-expire-logs-seconds=86400
+            - --max-binlog-size=256M
           resources:
             requests:
-              cpu: 250m
+              cpu: 100m
               memory: 1Gi
             limits:
               cpu: "2"
