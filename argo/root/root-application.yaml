@@ -8,7 +8,7 @@ metadata:
 spec:
   project: platform
   source:
-    repoURL: https://github.com/electgo/manifest
+    repoURL: https://github.com/electgo/manifest.git
     targetRevision: main
     path: argo
     directory:

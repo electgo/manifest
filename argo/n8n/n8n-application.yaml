@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: n8n-dev
+  namespace: argocd
+spec:
+  project: product
+  destination:
+    name: development
+    namespace: n8n
+  source:
+    path: argo/n8n
+    repoURL: https://github.com/electgo/manifest.git
+    targetRevision: main
+    directory:
+      recurse: false
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 3m
