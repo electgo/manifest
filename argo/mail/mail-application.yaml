@@ -15,7 +15,7 @@ spec:
         releaseName: mailu
         valueFiles:
           - $values/argo/mail/values-prod.yaml
-    - repoURL: git@github.com:electgo/manifest.git
+    - repoURL: https://github.com/electgo/manifest.git
       targetRevision: main
       ref: values
   destination:
