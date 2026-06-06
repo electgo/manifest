@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-tls-certs
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/electgo/manifest
+    targetRevision: main
+    path: infra/tls
+  destination:
+    name: development
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
