@@ -1,0 +1,128 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pim-dev-tls
+  namespace: pim-master
+spec:
+  secretName: pim-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "pim.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: chat-dev-tls
+  namespace: pim-chatbot
+spec:
+  secretName: chat-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "chat.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: bucketupload-dev-tls
+  namespace: pim-bucket-upload
+spec:
+  secretName: bucketupload-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "bucketupload.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: partners-dev-tls
+  namespace: pim-partners-bundling
+spec:
+  secretName: partners-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "partners.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pim-websocket-dev-tls
+  namespace: pim-websocket
+spec:
+  secretName: pim-websocket-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "pim-websocket.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: product-ai-enrich-dev-tls
+  namespace: product-ai-enrich
+spec:
+  secretName: product-ai-enrich-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "product-ai-enrich.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: auto8-dev-tls
+  namespace: n8n
+spec:
+  secretName: auto8-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "auto8.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sku-finder-dev-tls
+  namespace: pim-sku-finder
+spec:
+  secretName: sku-finder-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "sku-finder-id.dev.electgo.com"
+    - "sku-finder-sg.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
