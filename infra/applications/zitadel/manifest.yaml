@@ -85,7 +85,7 @@ spec:
         app: zitadel
     spec:
       nodeSelector:
-        workload: admin
+        workload: data
       securityContext:
         fsGroup: 1000
       initContainers:
