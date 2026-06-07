@@ -40,6 +40,13 @@ spec:
           effect: NoSchedule
       securityContext:
         fsGroup: 1000
+      initContainers:
+        - name: fix-data-dir
+          image: busybox
+          command: ["sh", "-c", "rm -rf /var/lib/kafka/data/lost+found"]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
       containers:
         - name: kafka
           image: apache/kafka:4.3.0
