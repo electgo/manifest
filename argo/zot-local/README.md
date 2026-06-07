@@ -90,7 +90,7 @@ but not `503 Service Temporarily Unavailable`.
 
 The existing PVC was provisioned with `local-path` node affinity for
 `electgo-management-k3s-server`, but the current node hostname is
-`electgo-management`. Kubernetes treats PV node affinity as immutable, so that
+`electgo-mgmt-control`. Kubernetes treats PV node affinity as immutable, so that
 old PVC cannot be patched in place. If you want to preserve the old registry
 data, fix the node-affinity mismatch manually before syncing this Argo app.
 If you only need service recovery, a fresh PVC on the current node is the
