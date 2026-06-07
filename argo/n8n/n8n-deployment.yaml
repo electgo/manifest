@@ -114,7 +114,7 @@ spec:
                   key: password
                   name: n8n-pg-external
             - name: DB_POSTGRESDB_SSL_ENABLED
-              value: "true"
+              value: "false"
             - name: DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED
               value: "false"
             - name: N8N_ENCRYPTION_KEY
