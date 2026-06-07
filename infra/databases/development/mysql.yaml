@@ -92,7 +92,9 @@ spec:
             successThreshold: 1
             timeoutSeconds: 1
   volumeClaimTemplates:
-    - metadata:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]
