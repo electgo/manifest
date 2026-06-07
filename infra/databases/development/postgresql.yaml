@@ -37,6 +37,15 @@ spec:
           effect: NoSchedule
       securityContext:
         fsGroup: 999
+      initContainers:
+        - name: fix-ssl
+          image: busybox
+          command: ["sh", "-c", "rm -f /var/lib/postgresql/data/pgdata/server.key /var/lib/postgresql/data/pgdata/server.crt /var/lib/postgresql/data/pgdata/root.crt && sed -i 's/^ssl *=.*/ssl = off/' /var/lib/postgresql/data/pgdata/postgresql.conf"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
       containers:
         - name: postgresql
           image: postgres:18
@@ -77,4 +86,4 @@ spec:
         storageClassName: gp3-encrypted
         resources:
           requests:
-            storage: 2Gi
+            storage: 10Gi

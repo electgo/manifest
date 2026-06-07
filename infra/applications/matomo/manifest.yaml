@@ -10,7 +10,7 @@ metadata:
   namespace: matomo
 type: Opaque
 stringData:
-  MATOMO_DATABASE_HOST: "management-mysql.management-data.svc.cluster.local"
+  MATOMO_DATABASE_HOST: "mysql.database.svc.cluster.local"
   MATOMO_DATABASE_ADAPTER: "mysql"
   MATOMO_DATABASE_TABLES_PREFIX: "matomo_"
   MATOMO_DATABASE_USERNAME: "matomo"

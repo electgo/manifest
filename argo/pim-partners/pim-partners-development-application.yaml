@@ -13,22 +13,40 @@ spec:
       jsonPointers:
         - /data
         - /stringData
+    - group: apps
+      jsonPointers:
+        - /spec/template/spec/nodeSelector
+      kind: Deployment
   source:
     repoURL: https://github.com/electgo/pim-partners-bundling
     targetRevision: develop
     path: helm/pim-partners-bundling
     helm:
+      releaseName: pim-partners
       valueFiles:
         - values-development.yaml
       parameters:
         - name: ingress.host
-          value: partners.dev.electgo.com
+          value: "partners.dev.electgo.com"
         - name: ingress.tls.enabled
           value: "true"
         - name: ingress.tls.secretName
-          value: dev-services-tls
+          value: "dev-services-tls"
+        - name: ingress.className
+          value: "traefik"
+        - name: resources.requests.cpu
+          value: "50m"
+        - name: nodeSelector.workload
+          value: "apps"
   destination:
     name: development
     namespace: pim-partners-bundling
-  # Image tag is bumped by CI (bump-image-tag job in pim-partners-bundling
-  # workflow). Sync still manual on dev to give team a moment to inspect builds.
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+  # Secrets (env.secret.* vars) managed via pim-partners-bundling-secret — not in git.
+  # Image tag bumped by CI (bump-image-tag job). Sync still manual on dev.

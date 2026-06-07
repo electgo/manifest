@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nfs-subdir-dev
+  namespace: argocd
+spec:
+  project: management
+  destination:
+    name: development
+    namespace: nfs-subdir
+  source:
+    chart: nfs-subdir-external-provisioner
+    repoURL: https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner
+    targetRevision: 4.0.18
+    helm:
+      releaseName: nfs-subdir
+      values: |
+        replicaCount: 1
+        provisionerName: cluster.local/nfs-subdir-nfs-subdir-external-provisioner
+        nfs:
+          server: 10.20.17.100
+          path: /data/nfs
+          mountOptions:
+            - nfsvers=4
+        storageClass:
+          name: nfs-subdir
+          defaultClass: false
+          reclaimPolicy: Delete
+        nodeSelector:
+          kubernetes.io/arch: amd64
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

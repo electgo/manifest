@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgresql-backup
+  namespace: database
+spec:
+  schedule: "0 18 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: amazon/aws-cli:2.17.56
+              env:
+                - name: BACKUP_BUCKET
+                  valueFrom: { secretKeyRef: { name: backup-s3, key: bucket } }
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: postgresql, key: POSTGRES_PASSWORD } }
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  yum -y install postgresql15 gzip >/dev/null
+                  dump="/tmp/postgresql-$(date +%Y%m%d%H%M).sql.gz"
+                  pg_dumpall -h postgresql.database.svc.cluster.local -U postgres | gzip > "$dump"
+                  test -s "$dump"
+                  aws s3 cp "$dump" "s3://$BACKUP_BUCKET/electgo/db-dumps/management/$(basename "$dump")"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mysql-backup
+  namespace: database
+spec:
+  schedule: "15 18 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: mysql:8
+              env:
+                - name: BACKUP_BUCKET
+                  valueFrom: { secretKeyRef: { name: backup-s3, key: bucket } }
+                - name: MYSQL_PWD
+                  valueFrom: { secretKeyRef: { name: mysql, key: MYSQL_ROOT_PASSWORD } }
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  microdnf install -y awscli gzip >/dev/null
+                  dump="/tmp/mysql-$(date +%Y%m%d%H%M).sql.gz"
+                  mysqldump -h mysql.database.svc.cluster.local -uroot --all-databases --single-transaction --routines --triggers --events | gzip > "$dump"
+                  test -s "$dump"
+                  aws s3 cp "$dump" "s3://$BACKUP_BUCKET/electgo/db-dumps/management/$(basename "$dump")"

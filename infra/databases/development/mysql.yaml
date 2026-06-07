@@ -29,11 +29,11 @@ spec:
         app.kubernetes.io/name: mysql
     spec:
       nodeSelector:
-        workload: worker
+        workload: search
       tolerations:
         - key: dedicated
           operator: Equal
-          value: mysql
+          value: search
           effect: NoSchedule
       securityContext:
         fsGroup: 999
@@ -48,11 +48,9 @@ spec:
                 name: mysql
           args:
             - --max-allowed-packet=256M
-            - --binlog-expire-logs-seconds=86400
-            - --max-binlog-size=256M
           resources:
             requests:
-              cpu: 100m
+              cpu: 250m
               memory: 1Gi
             limits:
               cpu: "2"
@@ -78,4 +76,4 @@ spec:
         storageClassName: gp3-encrypted
         resources:
           requests:
-            storage: 25Gi
+            storage: 50Gi

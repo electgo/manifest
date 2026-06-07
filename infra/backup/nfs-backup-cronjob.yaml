@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dev-nfs-backup
+  namespace: kube-system
+spec:
+  schedule: "30 18 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: nfs-backup
+              image: amazon/aws-cli:2.17.56
+              env:
+                - name: BACKUP_BUCKET
+                  valueFrom: { secretKeyRef: { name: backup-s3, key: bucket } }
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  yum -y install tar gzip >/dev/null
+                  archive="/tmp/dev-nfs-$(date +%Y%m%d%H%M).tar.gz"
+                  tar -czf "$archive" -C /nfs .
+                  test -s "$archive"
+                  aws s3 cp "$archive" "s3://$BACKUP_BUCKET/electgo/dev/nfs/$(basename "$archive")"
+              volumeMounts:
+                - name: nfs-root
+                  mountPath: /nfs
+                  readOnly: true
+          volumes:
+            - name: nfs-root
+              nfs:
+                server: 10.20.17.225
+                path: /data/nfs

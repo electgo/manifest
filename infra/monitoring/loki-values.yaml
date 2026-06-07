@@ -1,0 +1,19 @@
+loki:
+  persistence:
+    enabled: true
+    storageClassName: gp3-encrypted
+    size: 50Gi
+  nodeSelector:
+    workload: observe
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+promtail:
+  enabled: true
+  config:
+    clients:
+      - url: http://loki:3100/loki/api/v1/push

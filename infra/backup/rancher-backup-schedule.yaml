@@ -1,0 +1,34 @@
+apiVersion: resources.cattle.io/v1
+kind: Backup
+metadata:
+  name: preflight-backup
+  namespace: cattle-resources-system
+spec:
+  resourceSetName: rancher-resource-set-full
+  storageLocation:
+    s3:
+      bucketName: electgo-prod-storage
+      folder: electgo/management/rancher
+      region: ap-southeast-3
+      endpoint: s3.ap-southeast-3.amazonaws.com
+      credentialSecretName: s3-creds
+      credentialSecretNamespace: cattle-resources-system
+---
+apiVersion: resources.cattle.io/v1
+kind: Backup
+metadata:
+  name: daily-rancher-backup
+  namespace: cattle-resources-system
+spec:
+  schedule: "0 19 * * *"
+  retentionCount: 7
+  storageLocation:
+    s3:
+      bucketName: electgo-prod-storage
+      folder: electgo/management/rancher
+      region: ap-southeast-3
+      endpoint: s3.ap-southeast-3.amazonaws.com
+      credentialSecretName: s3-creds
+      credentialSecretNamespace: cattle-resources-system
+  resourceSetName: rancher-resource-set-full
+  encryptionConfigSecretName: rancher-backup-encryption

@@ -1,0 +1,16 @@
+# EBS gp3 StorageClass for development and management K3s clusters.
+# Used by the EBS CSI driver to provision encrypted gp3 volumes for stateful
+# workloads (databases, caches, etc.) during the infra expansion from 4 to 13 nodes.
+# Apply with: kubectl apply -f gp3-storageclass.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3-encrypted
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+parameters:
+  type: gp3
+  encrypted: "true"
+  fsType: ext4

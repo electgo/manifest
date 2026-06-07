@@ -155,7 +155,7 @@ spec:
           create: true
           name: loki
           annotations:
-            eks.amazonaws.com/role-arn: arn:aws:iam::043713809039:role/electgo-prod-loki-s3
+            eks.amazonaws.com/role-arn: arn:aws:iam::043713809039:role/ElectGoProdLokiS3Role
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

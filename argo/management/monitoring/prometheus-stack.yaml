@@ -25,11 +25,26 @@ spec:
                       storage: 50Gi
         grafana:
           nodeSelector:
-            workload: observe
+            workload: data
+          tolerations:
+            - key: dedicated
+              value: data
+              effect: NoSchedule
           persistence:
             enabled: true
             storageClassName: gp3-encrypted
             size: 10Gi
+          datasources:
+            datasources.yaml:
+              apiVersion: 1
+              datasources:
+                - name: Prometheus
+                  type: prometheus
+                  url: http://prometheus-kube-prometheus-prometheus.monitoring.svc:9090
+                  access: proxy
+                  isDefault: true
+                  jsonData:
+                    timeInterval: "15s"
         alertmanager:
           alertmanagerSpec:
             nodeSelector:

@@ -10,10 +10,10 @@ metadata:
   namespace: zitadel
 type: Opaque
 stringData:
-  ZITADEL_DATABASE_POSTGRES_DSN: "postgresql://zitadel:%24%2B%25-%29A4P%2C%2C%3D4b2tW%28cHivEASK@management-postgresql.management-data.svc.cluster.local:5432/zitadelv3?sslmode=disable"
+  ZITADEL_DATABASE_POSTGRES_DSN: "postgresql://zitadel:%24%2B%25-%29A4P%2C%2C%3D4b2tW%28cHivEASK@postgresql.database.svc.cluster.local:5432/zitadel?sslmode=disable"
   ZITADEL_EXTERNALSECURE: "true"
   ZITADEL_TLS_ENABLED: "false"
-  ZITADEL_MASTERKEY: "MasterkeyNeedsToBe32CharsLong000"
+  ZITADEL_MASTERKEY: "MasterkeyNeedsToHave32Characters"
   ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: "admin"
   ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: "ZitadelAdmin2026!"
   ZITADEL_PORT: "8080"
