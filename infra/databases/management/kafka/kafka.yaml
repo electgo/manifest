@@ -43,6 +43,7 @@ spec:
       initContainers:
         - name: fix-data-dir
           image: busybox
+          imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "rm -rf /var/lib/kafka/data/lost+found"]
           volumeMounts:
             - name: data
@@ -54,8 +55,10 @@ spec:
           ports:
             - name: plaintext
               containerPort: 9092
+              protocol: TCP
             - name: controller
               containerPort: 9093
+              protocol: TCP
           env:
             - name: CLUSTER_ID
               value: electgo-kafka-0001
@@ -106,11 +109,17 @@ spec:
               port: plaintext
             initialDelaySeconds: 30
             periodSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 1
           livenessProbe:
             tcpSocket:
               port: plaintext
             initialDelaySeconds: 90
             periodSeconds: 30
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 1
   volumeClaimTemplates:
     - metadata:
         name: data

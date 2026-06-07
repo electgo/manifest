@@ -40,9 +40,11 @@ spec:
       containers:
         - name: mysql
           image: mysql:9
+          imagePullPolicy: IfNotPresent
           ports:
             - name: mysql
               containerPort: 3306
+              protocol: TCP
           envFrom:
             - secretRef:
                 name: mysql
@@ -63,11 +65,17 @@ spec:
               command: ["sh", "-c", "mysqladmin ping -uroot -p$MYSQL_ROOT_PASSWORD"]
             initialDelaySeconds: 20
             periodSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 1
           livenessProbe:
             exec:
               command: ["sh", "-c", "mysqladmin ping -uroot -p$MYSQL_ROOT_PASSWORD"]
             initialDelaySeconds: 60
             periodSeconds: 20
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 1
   volumeClaimTemplates:
     - metadata:
         name: data
