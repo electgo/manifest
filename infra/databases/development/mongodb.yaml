@@ -94,6 +94,7 @@ spec:
       spec:
         accessModes: ["ReadWriteOnce"]
         storageClassName: gp3-encrypted
+        volumeMode: Filesystem
         resources:
           requests:
             storage: 20Gi
