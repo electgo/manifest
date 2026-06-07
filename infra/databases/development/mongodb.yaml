@@ -40,9 +40,11 @@ spec:
       containers:
         - name: mongodb
           image: mongo:8
+          imagePullPolicy: IfNotPresent
           ports:
             - name: mongodb
               containerPort: 27017
+              protocol: TCP
           env:
             - name: GLIBC_TUNABLES
               value: glibc.cpu.hwcaps=-SHSTK
@@ -64,12 +66,16 @@ spec:
               command: ["sh", "-c", "mongosh --eval 'db.adminCommand(\"ping\")' --quiet"]
             initialDelaySeconds: 20
             periodSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
             timeoutSeconds: 5
           livenessProbe:
             exec:
               command: ["sh", "-c", "mongosh --eval 'db.adminCommand(\"ping\")' --quiet"]
             initialDelaySeconds: 60
             periodSeconds: 20
+            failureThreshold: 3
+            successThreshold: 1
             timeoutSeconds: 10
   volumeClaimTemplates:
     - metadata:

@@ -40,6 +40,7 @@ spec:
       initContainers:
         - name: fix-ssl
           image: busybox
+          imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "rm -f /var/lib/postgresql/data/pgdata/server.key /var/lib/postgresql/data/pgdata/server.crt /var/lib/postgresql/data/pgdata/root.crt; [ -f /var/lib/postgresql/data/pgdata/postgresql.conf ] && sed -i 's/^ssl *=.*/ssl = off/' /var/lib/postgresql/data/pgdata/postgresql.conf || true"]
           securityContext:
             runAsUser: 0
@@ -49,9 +50,11 @@ spec:
       containers:
         - name: postgresql
           image: postgres:18
+          imagePullPolicy: IfNotPresent
           ports:
             - name: postgresql
               containerPort: 5432
+              protocol: TCP
           envFrom:
             - secretRef:
                 name: postgresql
@@ -73,11 +76,17 @@ spec:
               command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
             initialDelaySeconds: 15
             periodSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 1
           livenessProbe:
             exec:
               command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
             initialDelaySeconds: 60
             periodSeconds: 20
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 1
   volumeClaimTemplates:
     - metadata:
         name: data

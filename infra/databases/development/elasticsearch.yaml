@@ -43,17 +43,21 @@ spec:
       initContainers:
         - name: sysctl
           image: busybox
+          imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "sysctl -w vm.max_map_count=262144"]
           securityContext:
             privileged: true
       containers:
         - name: elasticsearch
           image: elasticsearch:8.17.0
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 9200
+              protocol: TCP
             - name: transport
               containerPort: 9300
+              protocol: TCP
           env:
             - name: discovery.type
               value: single-node
@@ -88,6 +92,8 @@ spec:
                 - curl -sf -u "elastic:${ELASTIC_PASSWORD}" http://localhost:9200/_cluster/health
             initialDelaySeconds: 30
             periodSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
             timeoutSeconds: 5
           livenessProbe:
             exec:
@@ -97,6 +103,8 @@ spec:
                 - curl -sf -u "elastic:${ELASTIC_PASSWORD}" http://localhost:9200/_cluster/health
             initialDelaySeconds: 90
             periodSeconds: 30
+            failureThreshold: 3
+            successThreshold: 1
             timeoutSeconds: 10
   volumeClaimTemplates:
     - metadata:
