@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kafka
+  namespace: argocd
+spec:
+  project: management
+  source:
+    path: infra/databases/management/kafka
+    repoURL: https://github.com/electgo/manifest.git
+    targetRevision: main
+    directory:
+      include: '*.yaml'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: database
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/revision
+        - /status
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions:
+        - '.spec.template.spec.containers[]?.imagePullPolicy'
+        - '.spec.template.spec.initContainers[]?.imagePullPolicy'
