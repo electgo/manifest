@@ -80,8 +80,11 @@ spec:
               mountPath: /var/lib/postgresql/data
       containers:
         - name: postgresql
-          image: postgres:18
+          image: percona/percona-distribution-postgresql:18.3-1
           imagePullPolicy: IfNotPresent
+          args:
+            - -c
+            - shared_preload_libraries=pgaudit
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           ports:
@@ -131,4 +134,4 @@ spec:
         volumeMode: Filesystem
         resources:
           requests:
-            storage: 10Gi
+            storage: 20Gi

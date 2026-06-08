@@ -20,7 +20,7 @@ spec:
       jsonPointers:
         - /data
   source:
-    repoURL: https://github.com/ElectGoDev/electgo-be-user
+    repoURL: https://github.com/electgo/electgo-be-user
     targetRevision: develop
     path: helm/electgo-be-user
     helm:
