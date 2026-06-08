@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: marketplace
+  namespace: argocd
+spec:
+  description: All marketplace services
+  sourceRepos:
+    - https://github.com/electgo/zitadel
+    - https://github.com/ElectGoDev/electgo-be-user
+    - https://github.com/electgo/electgo-be-product
+    - https://github.com/electgo/electgo-seller-center-be
+  destinations:
+    - name: development
+      namespace: "*"
+      server: https://kubernetes.default.svc
+  destinationServiceAccounts:
+    - defaultServiceAccount: development
+      namespace: "*"
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
