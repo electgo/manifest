@@ -1,0 +1,21 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: argocd-create-app-project-redirect
+  namespace: argocd
+spec:
+  redirectRegex:
+    regex: ^https://argocd\.electgo\.com/applications\?(.+)&proj=&(.*)$
+    replacement: https://argocd.electgo.com/applications?${1}&proj=management&${2}
+    permanent: false
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: argocd-repo-apps-project-redirect
+  namespace: argocd
+spec:
+  redirectRegex:
+    regex: ^https://argocd\.electgo\.com/api/v1/repositories/(.*)/apps\?revision=([^&]*)&appName=([^&]*)&appProject=$
+    replacement: https://argocd.electgo.com/api/v1/repositories/${1}/apps?revision=${2}&appName=${3}&appProject=management
+    permanent: false
