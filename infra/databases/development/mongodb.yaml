@@ -12,6 +12,21 @@ spec:
   selector:
     app.kubernetes.io/name: mongodb
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-vpn
+  namespace: database
+spec:
+  type: NodePort
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: mongodb
+      nodePort: 31317
+  selector:
+    app.kubernetes.io/name: mongodb
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:

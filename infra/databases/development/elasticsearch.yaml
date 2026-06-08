@@ -15,6 +15,21 @@ spec:
   selector:
     app.kubernetes.io/name: elasticsearch
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-vpn
+  namespace: database
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 9200
+      targetPort: http
+      nodePort: 31200
+  selector:
+    app.kubernetes.io/name: elasticsearch
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:

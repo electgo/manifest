@@ -12,6 +12,21 @@ spec:
   selector:
     app.kubernetes.io/name: redis
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-vpn
+  namespace: database
+spec:
+  type: NodePort
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+      nodePort: 31379
+  selector:
+    app.kubernetes.io/name: redis
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
