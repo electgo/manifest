@@ -126,3 +126,19 @@ spec:
   privateKey:
     algorithm: ECDSA
     size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: seller-center-dev-tls
+  namespace: electgo-seller-center
+spec:
+  secretName: seller-center-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "be-seller-center.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
