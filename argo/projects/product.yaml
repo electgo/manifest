@@ -18,6 +18,10 @@ spec:
       namespace: pim-*
     - name: development
       namespace: product-ai-enrich
+    - name: development
+      namespace: electgo-seller-center
+    - name: development
+      namespace: n8n
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
