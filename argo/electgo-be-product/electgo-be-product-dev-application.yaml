@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: electgo-be-product-dev
+  namespace: argocd
+spec:
+  project: marketplace
+  source:
+    repoURL: https://github.com/electgo/electgo-be-product
+    targetRevision: develop
+    path: helm/electgo-be-product
+    helm:
+      releaseName: electgo-be-product
+      valueFiles:
+        - values.yaml
+        - values-development.yaml
+      parameters:
+        - name: replicaCount
+          value: "1"
+        - name: ingress.host
+          value: "be-product.dev.electgo.com"
+        - name: image.tag
+          value: "development"
+        - name: imageCredentials.create
+          value: "true"
+        - name: imageCredentials.username
+          value: "admin"
+        - name: imageCredentials.password
+          value: "ElectGoregzot134"
+        - name: env.secret.MONGODB_URI
+          value: "mongodb://root:dev-mongo-2026-secure@mongodb.database.svc.cluster.local:27017/temp?authSource=admin"
+        - name: env.config.ELASTICSEARCH_NODE
+          value: "http://elasticsearch.database.svc.cluster.local:9200"
+        - name: env.config.ELASTICSEARCH_USER
+          value: "developer"
+        - name: env.secret.ELASTICSEARCH_PASSWORD
+          value: "SXhXgVSOCiA4kl0wrpc2XYjEg57nv+fdwxcbTESYU3Ue6j1L"
+        - name: env.secret.REDIS_PASSWORD
+          value: "SXhXgVSOCiA4kl0wrpc2XYjEg57nv+fdwxcbTESYU3Ue6j1L"
+        - name: env.config.REDIS_HOST
+          value: "redis.database.svc.cluster.local:6379"
+  destination:
+    name: development
+    namespace: electgo-be-product
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
