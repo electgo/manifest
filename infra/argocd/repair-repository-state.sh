@@ -27,6 +27,9 @@ while IFS= read -r secret_name; do
   [[ -z "$secret_name" ]] && continue
   patch="$(jq -n --arg project "$REPO_PROJECT" '{stringData: {project: $project}}')"
   kubectl -n "$NAMESPACE" patch secret "$secret_name" --type merge -p "$patch"
+  if kubectl -n "$NAMESPACE" get secret "$secret_name" -o json | jq -e '.data.name != null' >/dev/null; then
+    kubectl -n "$NAMESPACE" patch secret "$secret_name" --type json -p '[{"op":"remove","path":"/data/name"}]'
+  fi
 done <<< "$active_repo_secrets"
 
 for stale_secret in electgo-manifest-repo repo-electgo-manifest; do
@@ -60,6 +63,17 @@ if kubectl api-resources --api-group=traefik.io --no-headers 2>/dev/null | awk '
     --ignore-not-found
 fi
 
+for workload in deploy/argocd-redis sts/argocd-application-controller; do
+  if ! kubectl -n "$NAMESPACE" get "$workload" >/dev/null 2>&1; then
+    continue
+  fi
+  if kubectl -n "$NAMESPACE" get "$workload" -o json |
+    jq -e '.spec.template.spec.affinity.nodeAffinity != null' >/dev/null; then
+    kubectl -n "$NAMESPACE" patch "$workload" --type json \
+      -p '[{"op":"remove","path":"/spec/template/spec/affinity/nodeAffinity"}]'
+  fi
+done
+
 bad_projects="$(
   kubectl -n "$NAMESPACE" get secrets \
     -l argocd.argoproj.io/secret-type=repository \
@@ -86,6 +100,33 @@ repo_count="$(
 )"
 if [[ "$repo_count" != "1" ]]; then
   echo "FAIL expected 1 active repository secret for $REPO_URL, got $repo_count" >&2
+  exit 1
+fi
+
+bad_names="$(
+  kubectl -n "$NAMESPACE" get secrets \
+    -l argocd.argoproj.io/secret-type=repository \
+    -o json |
+    jq -r --arg url "$REPO_URL" '
+      .items[]
+      | select((.data.url // "" | @base64d) == $url)
+      | select(.data.name != null)
+      | .metadata.name
+    '
+)"
+if [[ -n "$bad_names" ]]; then
+  echo "FAIL repository secrets still have short alias names: $bad_names" >&2
+  exit 1
+fi
+
+bad_node_affinity="$(
+  kubectl -n "$NAMESPACE" get deploy argocd-redis -o json |
+    jq -r 'select(.spec.template.spec.affinity.nodeAffinity != null) | .metadata.name'
+  kubectl -n "$NAMESPACE" get sts argocd-application-controller -o json |
+    jq -r 'select(.spec.template.spec.affinity.nodeAffinity != null) | .metadata.name'
+)"
+if [[ -n "$bad_node_affinity" ]]; then
+  echo "FAIL stale nodeAffinity remains: $bad_node_affinity" >&2
   exit 1
 fi
 
