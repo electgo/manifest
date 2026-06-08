@@ -32,7 +32,18 @@ spec:
       containers:
         - name: redis
           image: redis:8
-          command: ["redis-server", "--maxmemory", "200mb", "--maxmemory-policy", "allkeys-lru"]
+          command:
+            - sh
+            - -c
+            - |
+              printf 'user default on nopass ~* &* +@all\nuser developer on >%s ~* &* +@all\n' "$DEVELOPER_PASSWORD" > /data/users.acl
+              exec redis-server --aclfile /data/users.acl --maxmemory 200mb --maxmemory-policy allkeys-lru
+          env:
+            - name: DEVELOPER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-developer-credentials
+                  key: password
           ports:
             - name: redis
               containerPort: 6379
