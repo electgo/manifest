@@ -18,6 +18,7 @@ spec:
     targetRevision: main
     path: helm/pim-bucket-upload
     helm:
+      releaseName: pim-bucket-upload
       valueFiles:
         - values-production.yaml
   destination:
