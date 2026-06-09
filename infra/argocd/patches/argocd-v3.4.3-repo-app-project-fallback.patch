@@ -1,16 +1,59 @@
 diff --git i/server/repository/repository.go w/server/repository/repository.go
-index 30ff871..86ff009 100644
+index 30ff871..8936570 100644
 --- i/server/repository/repository.go
 +++ w/server/repository/repository.go
-@@ -292,17 +292,21 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
- 	if err := s.enf.EnforceErr(claims, rbac.ResourceRepositories, rbac.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+@@ -76,6 +76,41 @@ func (s *Server) getRepo(ctx context.Context, url, project string) (*v1alpha1.Re
+ 	return repo, nil
+ }
+ 
++func (s *Server) getRepoWithEffectiveProject(ctx context.Context, url, project string) (*v1alpha1.Repository, string, error) {
++	repo, err := s.getRepo(ctx, url, project)
++	if project != "" {
++		return repo, project, err
++	}
++	if err == nil && repo.Project != "" {
++		return repo, repo.Project, nil
++	}
++
++	repos, listErr := s.db.ListRepositories(ctx)
++	if listErr != nil {
++		if err != nil {
++			return nil, "", err
++		}
++		return repo, project, nil
++	}
++	for _, candidate := range repos {
++		if !git.SameURL(candidate.Repo, url) {
++			continue
++		}
++		if !s.enf.Enforce(ctx.Value("claims"), rbac.ResourceRepositories, rbac.ActionGet, createRBACObject(candidate.Project, candidate.Repo)) {
++			continue
++		}
++		resolvedRepo, resolvedErr := s.getRepo(ctx, url, candidate.Project)
++		if resolvedErr != nil {
++			return nil, "", resolvedErr
++		}
++		return resolvedRepo, candidate.Project, nil
++	}
++	if err != nil {
++		return nil, "", err
++	}
++	return repo, project, nil
++}
++
+ func (s *Server) getWriteRepo(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+ 	repo, err := s.db.GetWriteRepository(ctx, url, project)
+ 	if err != nil {
+@@ -283,7 +318,7 @@ func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*api
+ // ListApps performs discovery of a git repository for potential sources of applications. Used
+ // as a convenience to the UI for auto-complete.
+ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
+-	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
++	repo, appProject, err := s.getRepoWithEffectiveProject(ctx, q.Repo, q.GetAppProject())
+ 	if err != nil {
  		return nil, err
  	}
-+	appProject := q.GetAppProject()
-+	if appProject == "" {
-+		appProject = repo.Project
-+	}
- 
+@@ -296,13 +331,13 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
  	// This endpoint causes us to clone git repos & invoke config management tooling for the purposes
  	// of app discovery. Only allow this to happen if user has privileges to create or update the
  	// application which it wants to retrieve these details for.
@@ -26,14 +69,17 @@ index 30ff871..86ff009 100644
  		return nil, err
  	}
  
-@@ -342,9 +346,13 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
- 	if err := s.enf.EnforceErr(claims, rbac.ResourceRepositories, rbac.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+@@ -334,7 +369,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
+ 	if q.Source == nil {
+ 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+ 	}
+-	repo, err := s.getRepo(ctx, q.Source.RepoURL, q.GetAppProject())
++	repo, appProject, err := s.getRepoWithEffectiveProject(ctx, q.Source.RepoURL, q.GetAppProject())
+ 	if err != nil {
  		return nil, err
  	}
-+	appProject := q.GetAppProject()
-+	if appProject == "" {
-+		appProject = repo.Project
-+	}
+@@ -344,7 +379,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
+ 	}
  	appName, appNs := argo.ParseFromQualifiedName(q.AppName, s.settings.GetNamespace())
  	app, err := s.appLister.Applications(appNs).Get(appName)
 -	appRBACObj := createRBACObject(q.AppProject, q.AppName)
@@ -41,7 +87,7 @@ index 30ff871..86ff009 100644
  	// ensure caller has read privileges to app
  	if err := s.enf.EnforceErr(claims, rbac.ResourceApplications, rbac.ActionGet, appRBACObj); err != nil {
  		return nil, err
-@@ -357,7 +365,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
+@@ -357,7 +392,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
  		}
  	} else {
  		// if we get here we are returning repo details of an existing app
@@ -50,7 +96,7 @@ index 30ff871..86ff009 100644
  			return nil, common.PermissionDeniedAPIError
  		}
  		// verify caller is not making a request with arbitrary source values which were not in our history
-@@ -366,7 +374,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
+@@ -366,7 +401,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
  		}
  	}
  	// Ensure the repo is actually allowed in the project in question
@@ -59,7 +105,7 @@ index 30ff871..86ff009 100644
  		return nil, err
  	}
  
-@@ -391,7 +399,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
+@@ -391,7 +426,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
  	refSources := make(v1alpha1.RefTargetRevisionMapping)
  	if app != nil && app.Spec.HasMultipleSources() {
  		// Store the map of all sources having ref field into a map for applications with sources field
