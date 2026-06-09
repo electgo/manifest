@@ -6,6 +6,30 @@ REPO_URL="${ARGOCD_REPO_URL:-https://github.com/electgo/manifest.git}"
 REPO_PROJECT="${ARGOCD_REPO_PROJECT:-management}"
 INGRESS_NAME="${ARGOCD_INGRESS_NAME:-argocd-server}"
 
+repo_project_for_url() {
+  case "$1" in
+    https://github.com/electgo/manifest.git) echo management ;;
+    https://github.com/electgo/pim-master) echo product ;;
+    https://github.com/electgo/pim-bucket-upload.git) echo product ;;
+    https://github.com/electgo/product-ai-enrich) echo product ;;
+    https://github.com/electgo/pim-sku-finder) echo product ;;
+    https://github.com/electgo/pim-partners-bundling) echo product ;;
+    https://github.com/electgo/pim-chatbot) echo product ;;
+    https://github.com/electgo/pim-partners-punchoutclient.git) echo product ;;
+    https://github.com/electgo/electgo-be-utils) echo marketplace ;;
+    https://github.com/electgo/electgo-be-user) echo marketplace ;;
+    https://github.com/electgo/electgo-be-product) echo marketplace ;;
+    https://github.com/electgo/matomo.git) echo platform ;;
+    https://charts.fairwinds.com/stable) echo platform ;;
+    https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner) echo management ;;
+    https://project-zot.github.io/helm-charts) echo management ;;
+    https://releases.rancher.com/server-charts/alpha) echo management ;;
+    https://prometheus-community.github.io/helm-charts) echo observability ;;
+    https://grafana.github.io/helm-charts) echo observability ;;
+    *) return 1 ;;
+  esac
+}
+
 find_active_repo_secrets() {
   kubectl -n "$NAMESPACE" get secrets \
     -l argocd.argoproj.io/secret-type=repository \
@@ -23,14 +47,30 @@ if [[ -z "$active_repo_secrets" ]]; then
   exit 1
 fi
 
+all_repo_secrets="$(
+  kubectl -n "$NAMESPACE" get secrets \
+    -l argocd.argoproj.io/secret-type=repository \
+    -o json |
+    jq -r '.items[].metadata.name'
+)"
+
 while IFS= read -r secret_name; do
   [[ -z "$secret_name" ]] && continue
-  patch="$(jq -n --arg project "$REPO_PROJECT" '{stringData: {project: $project}}')"
-  kubectl -n "$NAMESPACE" patch secret "$secret_name" --type merge -p "$patch"
+  repo_url="$(
+    kubectl -n "$NAMESPACE" get secret "$secret_name" -o json |
+      jq -r '.data.url // "" | @base64d'
+  )"
+  if project="$(repo_project_for_url "$repo_url")"; then
+    patch="$(jq -n --arg project "$project" '{stringData: {project: $project}}')"
+    kubectl -n "$NAMESPACE" patch secret "$secret_name" --type merge -p "$patch"
+  elif [[ "$repo_url" == "$REPO_URL" ]]; then
+    patch="$(jq -n --arg project "$REPO_PROJECT" '{stringData: {project: $project}}')"
+    kubectl -n "$NAMESPACE" patch secret "$secret_name" --type merge -p "$patch"
+  fi
   if kubectl -n "$NAMESPACE" get secret "$secret_name" -o json | jq -e '.data.name != null' >/dev/null; then
     kubectl -n "$NAMESPACE" patch secret "$secret_name" --type json -p '[{"op":"remove","path":"/data/name"}]'
   fi
-done <<< "$active_repo_secrets"
+done <<< "$all_repo_secrets"
 
 for stale_secret in electgo-manifest-repo repo-electgo-manifest; do
   if ! kubectl -n "$NAMESPACE" get secret "$stale_secret" >/dev/null 2>&1; then
@@ -90,6 +130,33 @@ if [[ -n "$bad_projects" ]]; then
   exit 1
 fi
 
+bad_mapped_projects=""
+while IFS= read -r repo_entry; do
+  [[ -z "$repo_entry" ]] && continue
+  secret_name="${repo_entry%%	*}"
+  repo_url="${repo_entry#*	}"
+  if ! expected_project="$(repo_project_for_url "$repo_url")"; then
+    continue
+  fi
+  actual_project="$(
+    kubectl -n "$NAMESPACE" get secret "$secret_name" -o json |
+      jq -r '.data.project // "" | @base64d'
+  )"
+  if [[ "$actual_project" != "$expected_project" ]]; then
+    bad_mapped_projects+="${secret_name}:${repo_url}:${actual_project}->${expected_project}"$'\n'
+  fi
+done <<< "$(
+  kubectl -n "$NAMESPACE" get secrets \
+    -l argocd.argoproj.io/secret-type=repository \
+    -o json |
+    jq -r '.items[] | [.metadata.name, (.data.url // "" | @base64d)] | @tsv'
+)"
+if [[ -n "$bad_mapped_projects" ]]; then
+  echo "FAIL repository secrets have wrong projects:" >&2
+  echo "$bad_mapped_projects" >&2
+  exit 1
+fi
+
 repo_count="$(
   kubectl -n "$NAMESPACE" get secrets \
     -l argocd.argoproj.io/secret-type=repository \
@@ -107,9 +174,8 @@ bad_names="$(
   kubectl -n "$NAMESPACE" get secrets \
     -l argocd.argoproj.io/secret-type=repository \
     -o json |
-    jq -r --arg url "$REPO_URL" '
+    jq -r '
       .items[]
-      | select((.data.url // "" | @base64d) == $url)
       | select(.data.name != null)
       | .metadata.name
     '
