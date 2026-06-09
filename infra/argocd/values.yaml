@@ -21,45 +21,6 @@ configs:
 
 server:
   replicas: 2
-  initContainers:
-    - name: install-electgo-argocd-server
-      image: amazon/aws-cli:2.17.56
-      imagePullPolicy: IfNotPresent
-      envFrom:
-        - secretRef:
-            name: argocd-aws-creds
-      command:
-        - sh
-        - -ec
-      args:
-        - |
-          case "$(uname -m)" in
-            x86_64)
-              server_bin="argocd-server-v3.4.3-electgo.2-linux-amd64"
-              server_sha="5ee15f174fcf24ca4ed48d055803ad3990b342d45774644e039f6303a851eba6"
-              ;;
-            aarch64|arm64)
-              server_bin="argocd-server-v3.4.3-electgo.2-linux-arm64"
-              server_sha="5337062b054bc1db84c98830769c00c7820914b30dd2e2a3a0505a77f5728548"
-              ;;
-            *)
-              echo "unsupported architecture: $(uname -m)" >&2
-              exit 1
-              ;;
-          esac
-          aws s3 cp --no-progress "s3://electgo-prod-storage/electgo/management/argocd/${server_bin}" /custom-bin/argocd-server
-          echo "${server_sha}  /custom-bin/argocd-server" | sha256sum -c -
-          chmod 0755 /custom-bin/argocd-server
-      volumeMounts:
-        - mountPath: /custom-bin
-          name: argocd-server-patched-bin
-  volumeMounts:
-    - mountPath: /usr/local/bin/argocd-server
-      name: argocd-server-patched-bin
-      subPath: argocd-server
-  volumes:
-    - name: argocd-server-patched-bin
-      emptyDir: {}
   pdb:
     enabled: true
     minAvailable: 1
