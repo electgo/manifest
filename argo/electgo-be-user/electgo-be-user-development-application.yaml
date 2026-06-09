@@ -29,6 +29,8 @@ spec:
         - values.yaml
         - values-development.yaml
       parameters:
+        - name: replicaCount
+          value: "0"
         - name: nodeSelector.workload
           value: "chatbot"
         - name: ingress.host
