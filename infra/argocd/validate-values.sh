@@ -34,3 +34,7 @@ check '.repoServer.topologySpreadConstraints[0].whenUnsatisfiable' 'DoNotSchedul
 check '.repoServer.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution[0].topologyKey' 'kubernetes.io/hostname'
 check '.repoServer.resources.requests.cpu' '50m'
 check '.repoServer.resources.requests.memory' '128Mi'
+check '.controller.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key' 'kubernetes.io/hostname'
+check '.controller.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0]' 'electgo-mgmt-gitops'
+check '.redis.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key' 'kubernetes.io/hostname'
+check '.redis.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0]' 'electgo-mgmt-gitops'

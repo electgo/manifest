@@ -82,6 +82,15 @@ controller:
       memory: 512Mi
     limits:
       memory: 2Gi
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                  - electgo-mgmt-gitops
 
 redis:
   resources:
@@ -90,3 +99,12 @@ redis:
       memory: 64Mi
     limits:
       memory: 256Mi
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                  - electgo-mgmt-gitops
