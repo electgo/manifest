@@ -75,6 +75,15 @@ server:
       maxSurge: 0
       maxUnavailable: 1
   affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                  - electgo-mgmt-control
+                  - electgo-mgmt-gitops
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         - labelSelector:
@@ -103,6 +112,15 @@ repoServer:
       maxSurge: 0
       maxUnavailable: 1
   affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                  - electgo-mgmt-control
+                  - electgo-mgmt-gitops
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         - labelSelector:
