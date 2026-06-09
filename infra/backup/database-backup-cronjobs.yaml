@@ -42,7 +42,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: backup
-              image: mysql:8
+              image: mysql:9.7.0
               env:
                 - name: BACKUP_BUCKET
                   valueFrom: { secretKeyRef: { name: backup-s3, key: bucket } }

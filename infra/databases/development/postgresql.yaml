@@ -71,7 +71,7 @@ spec:
           imagePullPolicy: IfNotPresent
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-          command: ["sh", "-c", "rm -f /var/lib/postgresql/data/pgdata/server.key /var/lib/postgresql/data/pgdata/server.crt /var/lib/postgresql/data/pgdata/root.crt; [ -f /var/lib/postgresql/data/pgdata/postgresql.conf ] && sed -i 's/^ssl *=.*/ssl = off/' /var/lib/postgresql/data/pgdata/postgresql.conf || true"]
+          command: ["sh", "-c", "rm -f /var/lib/postgresql/data/pgdata/server.key /var/lib/postgresql/data/pgdata/server.crt /var/lib/postgresql/data/pgdata/root.crt; [ -f /var/lib/postgresql/data/pgdata/postgresql.conf ] && sed -i -e 's/^ssl *=.*/ssl = off/' -e \"s/^shared_preload_libraries *=.*/shared_preload_libraries = ''/\" /var/lib/postgresql/data/pgdata/postgresql.conf || true"]
           resources: {}
           securityContext:
             runAsUser: 0
@@ -80,11 +80,11 @@ spec:
               mountPath: /var/lib/postgresql/data
       containers:
         - name: postgresql
-          image: percona/percona-distribution-postgresql:18.3-1
+          image: postgres:18
           imagePullPolicy: IfNotPresent
           args:
             - -c
-            - shared_preload_libraries=pgaudit
+            - shared_preload_libraries=
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           ports:

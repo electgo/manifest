@@ -67,20 +67,17 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: mongodb
-          image: percona/percona-server-mongodb:8.0.19-7
+          image: mongo:8.0.19
           imagePullPolicy: IfNotPresent
+          env:
+            - name: GLIBC_TUNABLES
+              value: glibc.cpu.hwcaps=-SHSTK
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           ports:
             - name: mongodb
               containerPort: 27017
               protocol: TCP
-          env:
-            - name: GLIBC_TUNABLES
-              value: glibc.cpu.hwcaps=-SHSTK
-          envFrom:
-            - secretRef:
-                name: mongodb
           resources:
             requests:
               cpu: 100m
@@ -118,4 +115,4 @@ spec:
         volumeMode: Filesystem
         resources:
           requests:
-            storage: 20Gi
+            storage: 5Gi
