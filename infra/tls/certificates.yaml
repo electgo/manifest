@@ -147,7 +147,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: be-user-dev-tls
-  namespace: marketplace
+  namespace: electgo-be-user
 spec:
   secretName: be-user-dev-tls
   issuerRef:
