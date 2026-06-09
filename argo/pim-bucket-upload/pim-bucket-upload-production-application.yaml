@@ -9,7 +9,7 @@ spec:
     - group: ""
       kind: Secret
       name: pim-bucket-upload-secret
-      namespace: pim-bucket-upload-prod
+      namespace: pim-bucket-upload
       jsonPointers:
         - /data
         - /stringData
@@ -23,7 +23,7 @@ spec:
         - values-production.yaml
   destination:
     name: production
-    namespace: pim-bucket-upload-prod
+    namespace: pim-bucket-upload
   syncPolicy:
     # Standby mode: production app is registered but will not auto-sync
     # until team explicitly runs Sync (or enables automated sync).
