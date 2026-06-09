@@ -146,6 +146,22 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
+  name: be-utils-dev-tls
+  namespace: electgo-be-utils
+spec:
+  secretName: be-utils-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "be-utils.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
   name: be-user-dev-tls
   namespace: electgo-be-user
 spec:
