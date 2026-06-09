@@ -142,3 +142,35 @@ spec:
   privateKey:
     algorithm: ECDSA
     size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: be-user-dev-tls
+  namespace: marketplace
+spec:
+  secretName: be-user-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "be-user.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: be-product-dev-tls
+  namespace: electgo-be-product
+spec:
+  secretName: be-product-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "be-product.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
