@@ -12,10 +12,11 @@ type: Opaque
 stringData:
   MATOMO_DATABASE_HOST: "mysql.database.svc.cluster.local"
   MATOMO_DATABASE_ADAPTER: "mysql"
-  MATOMO_DATABASE_TABLES_PREFIX: "matomo_"
+  MATOMO_DATABASE_TABLES_PREFIX: ""
   MATOMO_DATABASE_USERNAME: "matomo_user"
   MATOMO_DATABASE_PASSWORD: "ElectGo2026Mysql"
   MATOMO_DATABASE_DBNAME: "matomo"
+  MATOMO_GENERAL_SALT: "a2350dc98fbe7248810e08252c4d34a427e9f98679687ead812f7afa2f8d1c72"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -112,10 +113,44 @@ spec:
       initContainers:
         - name: warmup
           image: matomo:5.10.0-apache
-          command: ["sh", "-c", "until php -r \"new PDO('mysql:host=' . getenv('MATOMO_DATABASE_HOST') . ';dbname=' . getenv('MATOMO_DATABASE_DBNAME'), getenv('MATOMO_DATABASE_USERNAME'), getenv('MATOMO_DATABASE_PASSWORD'));\" 2>/dev/null; do echo waiting for db; sleep 2; done"]
+          command:
+            - sh
+            - -c
+            - |
+              until php -r "new PDO('mysql:host=' . getenv('MATOMO_DATABASE_HOST') . ';dbname=' . getenv('MATOMO_DATABASE_DBNAME'), getenv('MATOMO_DATABASE_USERNAME'), getenv('MATOMO_DATABASE_PASSWORD'));" 2>/dev/null; do
+                echo waiting for db
+                sleep 2
+              done
+              cat > /var/www/html/config/config.ini.php <<EOF
+              ; <?php exit; ?> DO NOT REMOVE THIS LINE
+              [database]
+              host = "${MATOMO_DATABASE_HOST}"
+              username = "${MATOMO_DATABASE_USERNAME}"
+              password = "${MATOMO_DATABASE_PASSWORD}"
+              dbname = "${MATOMO_DATABASE_DBNAME}"
+              tables_prefix = "${MATOMO_DATABASE_TABLES_PREFIX}"
+              adapter = "MYSQLI"
+              charset = "utf8mb4"
+
+              [General]
+              salt = "${MATOMO_GENERAL_SALT}"
+              trusted_hosts[] = "track.electgo.com"
+              force_ssl = 1
+              assume_secure_protocol = 1
+              proxy_client_headers[] = HTTP_X_FORWARDED_FOR
+              proxy_host_headers[] = HTTP_X_FORWARDED_HOST
+              trusted_proxies[] = "10.0.0.0/8"
+              trusted_proxies[] = "172.16.0.0/12"
+              trusted_proxies[] = "192.168.0.0/16"
+              EOF
+              chown www-data:www-data /var/www/html/config/config.ini.php
+              chmod 0640 /var/www/html/config/config.ini.php
           envFrom:
             - secretRef:
                 name: matomo-db
+          volumeMounts:
+            - name: data
+              mountPath: /var/www/html/config
       containers:
         - name: matomo
           image: matomo:5.10.0-apache
