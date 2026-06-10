@@ -20,6 +20,9 @@ spec:
     helm:
       valueFiles:
         - values-production.yaml
+      parameters:
+        - name: secret.create
+          value: "false"
   destination:
     name: production
     namespace: product-ai-enrich
