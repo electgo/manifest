@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pim-partners-punchout-client-prod
+  namespace: argocd
+spec:
+  project: production
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: pim-partners-punchout-client-secret
+      namespace: pim-partners-punchout-client-prod
+      jsonPointers:
+        - /data
+        - /stringData
+  source:
+    repoURL: https://github.com/electgo/pim-partners-punchoutclient.git
+    targetRevision: main
+    path: helm/pim-partners-punchout-client
+    helm:
+      valueFiles:
+        - values-prod.yaml
+  destination:
+    name: k3s-production
+    namespace: pim-partners-punchout-client-prod
+  syncPolicy:
+    # Standby mode: production app is registered but will not auto-sync
+    # until team explicitly runs Sync (or enables automated sync).
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mongodb-eks-to-dev-credentials
+  namespace: database
+type: Opaque
+stringData:
+  source-host: "af9b7aee39ac34a95b67bac52a3fdea0-9426d431d626ee8a.elb.ap-southeast-3.amazonaws.com"
+  source-port: "27017"
+  source-user: "${MONGODB_SOURCE_USER}"
+  source-password: "${MONGODB_SOURCE_PASSWORD}"
+  target-host: "mongodb.database.svc.cluster.local"
+  target-port: "27017"
+  target-user: "${MONGODB_TARGET_USER}"
+  target-password: "${MONGODB_TARGET_PASSWORD}"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongodb-eks-to-dev
+  namespace: database
+spec:
+  activeDeadlineSeconds: 7200
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: mongodb-migrate
+          image: mongo:8
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+              ephemeral-storage: 5Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+              ephemeral-storage: 10Gi
+          env:
+            - name: SRC_HOST
+              valueFrom: { secretKeyRef: { name: mongodb-eks-to-dev-credentials, key: source-host } }
+            - name: SRC_PORT
+              valueFrom: { secretKeyRef: { name: mongodb-eks-to-dev-credentials, key: source-port } }
+            - name: SRC_USER
+              valueFrom: { secretKeyRef: { name: mongodb-eks-to-dev-credentials, key: source-user } }
+            - name: SRC_PASS
+              valueFrom: { secretKeyRef: { name: mongodb-eks-to-dev-credentials, key: source-password } }
+            - name: TGT_HOST
+              valueFrom: { secretKeyRef: { name: mongodb-eks-to-dev-credentials, key: target-host } }
+            - name: TGT_PORT
+              valueFrom: { secretKeyRef: { name: mongodb-eks-to-dev-credentials, key: target-port } }
+            - name: TGT_USER
+              valueFrom: { secretKeyRef: { name: mongodb-eks-to-dev-credentials, key: target-user } }
+            - name: TGT_PASS
+              valueFrom: { secretKeyRef: { name: mongodb-eks-to-dev-credentials, key: target-password } }
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              mongodump --host="$SRC_HOST" --port="$SRC_PORT" --username="$SRC_USER" --password="$SRC_PASS" --authenticationDatabase=admin --gzip --archive=/tmp/mongodb.archive.gz
+              mongorestore --host="$TGT_HOST" --port="$TGT_PORT" --username="$TGT_USER" --password="$TGT_PASS" --authenticationDatabase=admin --gzip --archive=/tmp/mongodb.archive.gz --drop --preserveUUID
+              mongosh --host "$TGT_HOST" --port "$TGT_PORT" -u "$TGT_USER" -p "$TGT_PASS" --authenticationDatabase admin --quiet --eval 'db.adminCommand({listDatabases:1}).databases.forEach(d=>print(d.name))'
+              echo "mongodb migration complete"

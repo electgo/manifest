@@ -1,0 +1,115 @@
+# Source: JagoanHosting (103.27.206.86) — PostgreSQL 14.22
+# Target: postgres-main (CNPG 16.11) — pg_dump 14→16 is forward-compatible
+# Databases:
+#   modoboa (owner: modoboa, pw: 4sqvOvISNNZ6MIP0)
+#   openproject (owner: op_admin, pw: 1HbwkrgrOvsV)
+#   electgo_op (owner: op_admin, pw: 1HbwkrgrOvsV)
+# Skipping: spamassassin, amavis — mail infra stays external
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-jagoanhosting-migration
+  namespace: database
+spec:
+  activeDeadlineSeconds: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: postgres-migrate
+        image: postgres:16.11
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting JagoanHosting PG14 → K3s PG16 migration..."
+          echo "Timestamp: $(date)"
+          echo "Source: 103.27.206.86:5432"
+          echo "Target: postgres-main-rw.database.svc.cluster.local"
+          echo "========================================"
+
+          TARGET_HOST="postgres-main-rw.database.svc.cluster.local"
+          mkdir -p /tmp/migration
+          TOTAL_ERRORS=0
+
+          migrate_db() {
+            local DB=$1
+            local SRC_USER=$2
+            local SRC_PASS=$3
+            echo ""
+            echo "=== Migrating: $DB (user: $SRC_USER) ==="
+
+            PGPASSWORD="${SRC_PASS}" pg_dump \
+              -h 103.27.206.86 -p 5432 -U "${SRC_USER}" \
+              -d "${DB}" --no-owner --no-privileges --clean --if-exists -Fc \
+              -f /tmp/migration/${DB}.dump 2>&1
+
+            if [ $? -ne 0 ]; then
+              echo "ERROR: pg_dump failed for $DB"
+              TOTAL_ERRORS=$((TOTAL_ERRORS+1))
+              return 1
+            fi
+            echo "Dump size: $(du -h /tmp/migration/${DB}.dump | cut -f1)"
+
+            PGPASSWORD="${TARGET_PASSWORD}" psql \
+              -h $TARGET_HOST -U ${TARGET_USER} -d postgres \
+              -c "CREATE DATABASE ${DB}" 2>&1 || true
+
+            PGPASSWORD="${TARGET_PASSWORD}" pg_restore \
+              -h $TARGET_HOST -U ${TARGET_USER} -d "${DB}" \
+              --no-owner --no-privileges --clean --if-exists \
+              /tmp/migration/${DB}.dump 2>&1
+
+            # Validate
+            SRC_TABLES=$(PGPASSWORD="${SRC_PASS}" psql -h 103.27.206.86 -p 5432 -U "${SRC_USER}" \
+              -d "${DB}" -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema')" 2>/dev/null | tr -d ' ')
+            TGT_TABLES=$(PGPASSWORD="${TARGET_PASSWORD}" psql -h $TARGET_HOST -U ${TARGET_USER} \
+              -d "${DB}" -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema')" 2>/dev/null | tr -d ' ')
+            echo "Tables — source: ${SRC_TABLES}, target: ${TGT_TABLES}"
+            [ "${SRC_TABLES}" = "${TGT_TABLES}" ] && echo "$DB ✓" || echo "WARNING: $DB table count mismatch"
+
+            rm -f /tmp/migration/${DB}.dump
+          }
+
+          # modoboa DB — owned by modoboa user
+          migrate_db modoboa "${MODOBOA_USER}" "${MODOBOA_PASSWORD}"
+
+          # openproject + electgo_op — owned by op_admin
+          migrate_db openproject "${OP_USER}" "${OP_PASSWORD}"
+          migrate_db electgo_op "${OP_USER}" "${OP_PASSWORD}"
+
+          echo ""
+          echo "========================================"
+          echo "Migration completed! Total errors: $TOTAL_ERRORS"
+          echo "Timestamp: $(date)"
+          exit $TOTAL_ERRORS
+        env:
+        - name: MODOBOA_USER
+          value: "modoboa"
+        - name: MODOBOA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-jagoanhosting-credentials
+              key: modoboa-password
+        - name: OP_USER
+          value: "op_admin"
+        - name: OP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-jagoanhosting-credentials
+              key: op-password
+        - name: TARGET_USER
+          value: platform_user
+        - name: TARGET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-main-user
+              key: password
+  backoffLimit: 2

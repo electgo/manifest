@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-main-secrets
+  namespace: database
+type: Opaque
+stringData:
+  root: "rootpass123"
+  monitor: "monitor123"
+  operator: "operator123"
+  replication: "repl123"
+  heartbeat: "hb123"
+  orchestrator: "orch123"
+  xtrabackup: "xtra123"
+---
+apiVersion: ps.percona.com/v1
+kind: PerconaServerMySQL
+metadata:
+  name: mysql-main
+  namespace: database
+spec:
+  secretsName: mysql-main-secrets
+  crVersion: 1.0.0
+  pause: false
+  enableVolumeExpansion: true
+  
+  mysql:
+    size: 1
+    clusterType: async
+    image: percona/percona-server:8.0.43-34.1
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 200m
+        memory: 2Gi
+      limits:
+        cpu: 2
+        memory: 4Gi
+    volumeSpec:
+      persistentVolumeClaim:
+        resources:
+          requests:
+            storage: 80Gi
+        storageClassName: efs-sc-electgo
+  
+  backup:
+    image: percona/percona-xtrabackup:8.0.35
+  
+  proxy:
+    haproxy:
+      enabled: false
+      image: percona/haproxy:2.8.15
+      size: 1
+    router:
+      enabled: false.
+      image: percona/percona-mysql-router:8.4.6.
+      size: 0
+  
+  pmm:
+    enabled: false.
+    image: percona/pmm-client:2.44.0.
+  
+  unsafeFlags:
+    proxy: true.
+    proxySize: true.
+    mysqlSize: true.
+    orchestrator: true.

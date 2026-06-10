@@ -1,0 +1,52 @@
+apiVersion: v1
+items:
+- apiVersion: mysql.oracle.com/v2
+  kind: InnoDBCluster
+  metadata:
+    annotations:
+      kopf.zalando.org/last-handled-configuration: |
+        {"spec":{"baseServerId":1000,"datadirVolumeClaimTemplate":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"8Gi"}}},"instances":2,"router":{"instances":1},"secretName":"mysql-main-user","tlsUseSelfSigned":true,"version":"9.6.0"},"metadata":{"labels":{"objectset.rio.cattle.io/hash":"10b16d3d6d0e71582d01ecdb1a3d7d0e0af3eb16"},"annotations":{"mysql.oracle.com/cluster-info":"{\"initialDataSource\": \"blank\", \"createOptions\": {\"gtidSetIsComplete\": true, \"manualStartOnBoot\": true, \"memberSslMode\": \"REQUIRED\", \"exitStateAction\": \"ABORT_SERVER\"}}","mysql.oracle.com/fqdn-template":"{service}.{namespace}.svc.{domain}","mysql.oracle.com/mysql-operator-version":"9.6.0-2.2.7","objectset.rio.cattle.io/applied":"H4sIAAAAAAAA/3yRMY/UMBCF/8vUSS7ebPZCSg4JUQASB0eBKMb22zuDY+95Jkholf+OHEQBBZ39/PSev5kr8SU8oEjIiWZafspz7HJhF9G5vNz8OFBD30PyNNOblPKrl3dxFUWhhhYoe1am+UqcUlbWkJPUa7bf4FSgXQm5c6wa0YV8E2rO7WQHO7qx5XEa2iObYzvhcGztcH5xMseDH84jbQ1Ftoj/jXtieaKZTG/NyQ/+5HvcmnE6+N7AeWt48Le+R8/nAdacamjiBX9A24VDot+aXNjVhwpkWVC9coGr9VXzoTzkuC64ixyWj1gukRU7unMQeZs9hOYv9AHsP5egeJ8c6GtDBZLX4rCTFDyvEN3PornwYy2dXgfatq2hkEQ57V7TUMlrnfR8/UuvH4Mr0Hf/orSr7IvRKJ8E94jn+/CY4GnWsmLbfgUAAP//dE8IRO0BAAA","objectset.rio.cattle.io/id":"78b3b5c5-a583-4a14-8e24-b3f96142d3f5"}}}
+      mysql.oracle.com/cluster-info: '{"initialDataSource": "blank", "createOptions":
+        {"gtidSetIsComplete": true, "manualStartOnBoot": true, "memberSslMode": "REQUIRED",
+        "exitStateAction": "ABORT_SERVER"}}'
+      mysql.oracle.com/fqdn-template: '{service}.{namespace}.svc.{domain}'
+      mysql.oracle.com/mysql-operator-version: 9.6.0-2.2.7
+      objectset.rio.cattle.io/applied: H4sIAAAAAAAA/3yRMY/UMBCF/8vUSS7ebPZCSg4JUQASB0eBKMb22zuDY+95Jkholf+OHEQBBZ39/PSev5kr8SU8oEjIiWZafspz7HJhF9G5vNz8OFBD30PyNNOblPKrl3dxFUWhhhYoe1am+UqcUlbWkJPUa7bf4FSgXQm5c6wa0YV8E2rO7WQHO7qx5XEa2iObYzvhcGztcH5xMseDH84jbQ1Ftoj/jXtieaKZTG/NyQ/+5HvcmnE6+N7AeWt48Le+R8/nAdacamjiBX9A24VDot+aXNjVhwpkWVC9coGr9VXzoTzkuC64ixyWj1gukRU7unMQeZs9hOYv9AHsP5egeJ8c6GtDBZLX4rCTFDyvEN3PornwYy2dXgfatq2hkEQ57V7TUMlrnfR8/UuvH4Mr0Hf/orSr7IvRKJ8E94jn+/CY4GnWsmLbfgUAAP//dE8IRO0BAAA
+      objectset.rio.cattle.io/id: 78b3b5c5-a583-4a14-8e24-b3f96142d3f5
+    creationTimestamp: "2026-03-06T15:52:21Z"
+    finalizers:
+    - mysql.oracle.com/cluster
+    - kopf.zalando.org/KopfFinalizerMarker
+    generation: 3
+    labels:
+      objectset.rio.cattle.io/hash: 10b16d3d6d0e71582d01ecdb1a3d7d0e0af3eb16
+    name: mysql-main
+    namespace: database
+    resourceVersion: "1595295"
+    uid: 64ef5e7a-0c9f-45ad-ac57-ba0c0cd367c0
+  spec:
+    baseServerId: 1000
+    datadirVolumeClaimTemplate:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 8Gi
+    instances: 2
+    router:
+      instances: 1
+    secretName: mysql-main-user
+    tlsUseSelfSigned: true
+    version: 9.6.0
+  status:
+    cluster:
+      lastProbeTime: "2026-03-17T02:13:18Z"
+      onlineInstances: 0
+      status: OFFLINE
+      type: UNKNOWN
+    createTime: "2026-03-06T15:59:59Z"
+    kopf:
+      progress: {}
+kind: List
+metadata:
+  resourceVersion: ""

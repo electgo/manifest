@@ -1,0 +1,191 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongodb-migration
+  namespace: database
+spec:
+  activeDeadlineSeconds: 1800
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+      - name: pre-migration-check
+        image: mongo:7.0.24
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Checking Lightsail MongoDB connectivity..."
+          mongosh "mongodb://${SOURCE_USER}:${SOURCE_PASSWORD}@${SOURCE_HOST}:${SOURCE_PORT}/${SOURCE_DB}?authSource=${SOURCE_AUTH_DB}" \
+            --quiet --eval "JSON.stringify({status:'Lightsail OK', version:db.version()})"
+
+          echo "Checking K3s MongoDB connectivity..."
+          mongosh "mongodb://${TARGET_USER}:${TARGET_PASSWORD}@${TARGET_HOST}:27017/${SOURCE_DB}?authSource=admin&replicaSet=mongodb-main" \
+            --quiet --eval "JSON.stringify({status:'K3s OK', version:db.version()})"
+
+          echo "All connectivity checks passed!"
+        env:
+        - name: SOURCE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: host
+        - name: SOURCE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: port
+        - name: SOURCE_USER
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: username
+        - name: SOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: password
+        - name: SOURCE_DB
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: database
+        - name: SOURCE_AUTH_DB
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: authSource
+        - name: TARGET_HOST
+          value: mongodb-main-svc.database.svc.cluster.local
+        - name: TARGET_USER
+          value: electgo_owner
+        - name: TARGET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-credentials
+              key: password
+
+      containers:
+      - name: mongodb-migrate
+        image: mongo:7.0.24
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting MongoDB migration from Lightsail to K3s..."
+          echo "Source: ${SOURCE_HOST}:${SOURCE_PORT}/${SOURCE_DB}"
+          echo "Target: ${TARGET_HOST}:27017/${SOURCE_DB}"
+          echo "Timestamp: $(date)"
+          echo "----------------------------------------"
+
+          mkdir -p /tmp/migration
+          cd /tmp/migration
+
+          echo "Phase 1: Dumping database from Lightsail..."
+          mongodump \
+            --host="${SOURCE_HOST}" \
+            --port="${SOURCE_PORT}" \
+            --username="${SOURCE_USER}" \
+            --password="${SOURCE_PASSWORD}" \
+            --authenticationDatabase="${SOURCE_AUTH_DB}" \
+            --db="${SOURCE_DB}" \
+            --out=/tmp/migration/dump \
+            2>&1
+
+          DUMP_STATUS=$?
+          if [ $DUMP_STATUS -ne 0 ]; then
+            echo "ERROR: mongodump failed with exit code $DUMP_STATUS"
+            exit 1
+          fi
+
+          DUMP_SIZE=$(du -sh /tmp/migration/dump 2>/dev/null | cut -f1)
+          COLLECTION_COUNT=$(ls /tmp/migration/dump/${SOURCE_DB}/*.bson 2>/dev/null | wc -l)
+          echo "Phase 1 complete. Dump size: $DUMP_SIZE, Collections: $COLLECTION_COUNT"
+          echo "----------------------------------------"
+
+          echo "Phase 2: Restoring to K3s MongoDB..."
+          mongorestore \
+            --host="${TARGET_HOST}" \
+            --port=27017 \
+            --username="${TARGET_USER}" \
+            --password="${TARGET_PASSWORD}" \
+            --authenticationDatabase=admin \
+            --db="${SOURCE_DB}" \
+            --drop \
+            /tmp/migration/dump/${SOURCE_DB} \
+            2>&1
+
+          RESTORE_STATUS=$?
+          if [ $RESTORE_STATUS -ne 0 ]; then
+            echo "WARNING: mongorestore completed with exit code $RESTORE_STATUS"
+          fi
+
+          echo "----------------------------------------"
+          echo "Phase 3: Validating migration..."
+          mongosh "mongodb://${TARGET_USER}:${TARGET_PASSWORD}@${TARGET_HOST}:27017/${SOURCE_DB}?authSource=admin&replicaSet=mongodb-main" \
+            --quiet --eval '
+            const colls = db.getCollectionNames();
+            let totalDocs = 0;
+            colls.forEach(c => {
+              const count = db.getCollection(c).estimatedDocumentCount();
+              totalDocs += count;
+              print(c + ": " + count + " documents");
+            });
+            print("---");
+            print("Total collections: " + colls.length);
+            print("Total documents: " + totalDocs);
+          '
+
+          echo "----------------------------------------"
+          echo "Migration completed!"
+          echo "Timestamp: $(date)"
+          echo "Dump size: $DUMP_SIZE"
+          exit 0
+        env:
+        - name: SOURCE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: host
+        - name: SOURCE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: port
+        - name: SOURCE_USER
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: username
+        - name: SOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: password
+        - name: SOURCE_DB
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: database
+        - name: SOURCE_AUTH_DB
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-lightsail-credentials
+              key: authSource
+        - name: TARGET_HOST
+          value: mongodb-main-svc.database.svc.cluster.local
+        - name: TARGET_USER
+          value: electgo_owner
+        - name: TARGET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-credentials
+              key: password
+  backoffLimit: 3

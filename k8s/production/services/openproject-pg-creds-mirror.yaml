@@ -1,0 +1,51 @@
+---
+# Grant kyverno admission + background controllers list/get/create/update/delete on
+# Secrets in the openproject namespace (needed for generate.clone with synchronize).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno:mirror-openproject-pg-creds
+  labels:
+    rbac.kyverno.io/aggregate-to-admission-controller: "true"
+    rbac.kyverno.io/aggregate-to-background-controller: "true"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: mirror-openproject-pg-creds
+  annotations:
+    policies.kyverno.io/title: Mirror openproject PG creds
+    policies.kyverno.io/category: Secret Mgmt
+    policies.kyverno.io/description: >
+      Mirrors the operator-managed Secret
+      database/postgres-main-pg-db-pguser-openproject into the openproject
+      namespace as openproject-pgmain-creds, keeping it in sync on rotation
+      (PerconaPGCluster may rotate the password).
+spec:
+  admission: true
+  background: true
+  rules:
+    - name: clone-pguser-openproject
+      match:
+        any:
+          - resources:
+              kinds:
+                - Secret
+              names:
+                - postgres-main-pg-db-pguser-openproject
+              namespaces:
+                - database
+      generate:
+        apiVersion: v1
+        kind: Secret
+        name: openproject-pgmain-creds
+        namespace: openproject
+        synchronize: true
+        generateExisting: true
+        clone:
+          namespace: database
+          name: postgres-main-pg-db-pguser-openproject

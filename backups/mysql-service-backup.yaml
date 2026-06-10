@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2026-03-06T15:52:22Z"
+  labels:
+    mysql.oracle.com/cluster: mysql-main
+    objectset.rio.cattle.io/hash: 10b16d3d6d0e71582d01ecdb1a3d7d0e0af3eb16
+    tier: mysql
+  name: mysql-main
+  namespace: database
+  ownerReferences:
+  - apiVersion: mysql.oracle.com/v2
+    blockOwnerDeletion: true
+    controller: true
+    kind: InnoDBCluster
+    name: mysql-main
+    uid: 64ef5e7a-0c9f-45ad-ac57-ba0c0cd367c0
+  resourceVersion: "65365"
+  uid: 9db5dce2-bbdf-4080-99cd-f5563a988380
+spec:
+  clusterIP: 10.43.158.97
+  clusterIPs:
+  - 10.43.158.97
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: mysql
+    port: 3306
+    protocol: TCP
+    targetPort: 6446
+  - name: mysqlx
+    port: 33060
+    protocol: TCP
+    targetPort: 6448
+  - name: mysql-alternate
+    port: 6446
+    protocol: TCP
+    targetPort: 6446
+  - name: mysqlx-alternate
+    port: 6448
+    protocol: TCP
+    targetPort: 6448
+  - name: mysql-ro
+    port: 6447
+    protocol: TCP
+    targetPort: 6447
+  - name: mysqlx-ro
+    port: 6449
+    protocol: TCP
+    targetPort: 6449
+  - name: mysql-rw-split
+    port: 6450
+    protocol: TCP
+    targetPort: 6450
+  - name: router-rest
+    port: 8443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    component: mysqlrouter
+    mysql.oracle.com/cluster: mysql-main
+    tier: mysql
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

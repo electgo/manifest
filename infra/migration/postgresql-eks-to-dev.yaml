@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgresql-eks-to-dev-credentials
+  namespace: database
+type: Opaque
+stringData:
+  source-host: "${POSTGRES_SOURCE_HOST}"
+  source-user: "${POSTGRES_SOURCE_USER}"
+  source-password: "${POSTGRES_SOURCE_PASSWORD}"
+  target-host: "postgresql.database.svc.cluster.local"
+  target-user: "${POSTGRES_TARGET_USER}"
+  target-password: "${POSTGRES_TARGET_PASSWORD}"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-eks-to-dev
+  namespace: database
+spec:
+  activeDeadlineSeconds: 7200
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: pg-migrate
+          image: postgres:18
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+              ephemeral-storage: 5Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+              ephemeral-storage: 10Gi
+          env:
+            - name: SRC_HOST
+              valueFrom: { secretKeyRef: { name: postgresql-eks-to-dev-credentials, key: source-host } }
+            - name: SRC_USER
+              valueFrom: { secretKeyRef: { name: postgresql-eks-to-dev-credentials, key: source-user } }
+            - name: PGPASSWORD_SRC
+              valueFrom: { secretKeyRef: { name: postgresql-eks-to-dev-credentials, key: source-password } }
+            - name: TGT_HOST
+              valueFrom: { secretKeyRef: { name: postgresql-eks-to-dev-credentials, key: target-host } }
+            - name: TGT_USER
+              valueFrom: { secretKeyRef: { name: postgresql-eks-to-dev-credentials, key: target-user } }
+            - name: PGPASSWORD_TGT
+              valueFrom: { secretKeyRef: { name: postgresql-eks-to-dev-credentials, key: target-password } }
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -uo pipefail
+              export PGSSLMODE="${PGSSLMODE:-prefer}"
+              PGPASSWORD="$PGPASSWORD_SRC" psql -h "$SRC_HOST" -U "$SRC_USER" -d postgres -Atc "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname" > /tmp/databases.txt
+              DATABASES=$(cat /tmp/databases.txt)
+              if [ -z "$DATABASES" ]; then
+                echo "no databases discovered from source; aborting" >&2
+                exit 1
+              fi
+              PGPASSWORD="$PGPASSWORD_SRC" pg_dumpall -h "$SRC_HOST" -U "$SRC_USER" --globals-only --no-role-passwords > /tmp/postgresql-globals.sql
+              PGPASSWORD="$PGPASSWORD_TGT" psql -h "$TGT_HOST" -U "$TGT_USER" -d postgres -v ON_ERROR_STOP=0 -f /tmp/postgresql-globals.sql
+              failed=""; ok=0
+              for db in $DATABASES; do
+                dump="/tmp/${db}.sql.gz"
+                PGPASSWORD="$PGPASSWORD_SRC" pg_dump -h "$SRC_HOST" -U "$SRC_USER" -d "$db" --if-exists --clean | gzip > "$dump"
+                dump_rc=${PIPESTATUS[0]}
+                if [ "$dump_rc" -ne 0 ]; then failed="$failed $db(dump)"; continue; fi
+                case "$db" in (*[!a-zA-Z0-9_]*|'') echo "invalid database name: $db" >&2; exit 1;; esac
+                PGPASSWORD="$PGPASSWORD_TGT" psql -h "$TGT_HOST" -U "$TGT_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = :'db'" -v "db=$db" | grep -q 1 || PGPASSWORD="$PGPASSWORD_TGT" psql -h "$TGT_HOST" -U "$TGT_USER" -d postgres -c "CREATE DATABASE \"$db\""
+                zcat "$dump" | PGPASSWORD="$PGPASSWORD_TGT" psql -h "$TGT_HOST" -U "$TGT_USER" -d "$db" -v ON_ERROR_STOP=1
+                restore_rc=${PIPESTATUS[1]}
+                if [ "$restore_rc" -ne 0 ]; then failed="$failed $db(restore)"; else ok=$((ok+1)); fi
+                rm -f "$dump"
+              done
+              echo "postgresql migration complete ok=$ok failed=$failed"
+              [ -n "$failed" ] && exit 1

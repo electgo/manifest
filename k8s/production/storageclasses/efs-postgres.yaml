@@ -1,0 +1,74 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-postgres
+provisioner: efs.csi.aws.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-07e091bc44710d4da
+  basePath: /postgres
+  directoryPerms: "700"
+  uid: "26"
+  gid: "26"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-mysql
+provisioner: efs.csi.aws.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-07e091bc44710d4da
+  basePath: /mysql
+  directoryPerms: "700"
+  uid: "1001"
+  gid: "1001"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-mongodb
+provisioner: efs.csi.aws.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-07e091bc44710d4da
+  basePath: /mongodb
+  directoryPerms: "770"
+  uid: "1001"
+  gid: "1001"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-app-1000
+provisioner: efs.csi.aws.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-07e091bc44710d4da
+  basePath: /apps
+  directoryPerms: "770"
+  uid: "1000"
+  gid: "1000"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-www-data
+provisioner: efs.csi.aws.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-07e091bc44710d4da
+  basePath: /matomo
+  directoryPerms: "770"
+  uid: "33"
+  gid: "33"

@@ -1,0 +1,87 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: electgo-dev-k3s-server
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2026-03-06T15:52:22Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/component: database
+      app.kubernetes.io/created-by: mysql-operator
+      app.kubernetes.io/instance: mysql-innodbcluster-mysql-main-mysql-server
+      app.kubernetes.io/managed-by: mysql-operator
+      app.kubernetes.io/name: mysql-innodbcluster-mysql-server
+      component: mysqld
+      mysql.oracle.com/cluster: mysql-main
+      mysql.oracle.com/instance-type: group-member
+      tier: mysql
+    name: datadir-mysql-main-0
+    namespace: database
+    resourceVersion: "65416"
+    uid: 9ad34ac3-f64e-4036-94ff-b2b371a602fb
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 8Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-9ad34ac3-f64e-4036-94ff-b2b371a602fb
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 8Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: electgo-dev-k3s-agent
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2026-03-06T16:02:50Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/component: database
+      app.kubernetes.io/created-by: mysql-operator
+      app.kubernetes.io/instance: mysql-innodbcluster-mysql-main-mysql-server
+      app.kubernetes.io/managed-by: mysql-operator
+      app.kubernetes.io/name: mysql-innodbcluster-mysql-server
+      component: mysqld
+      mysql.oracle.com/cluster: mysql-main
+      mysql.oracle.com/instance-type: group-member
+      tier: mysql
+    name: datadir-mysql-main-1
+    namespace: database
+    resourceVersion: "66972"
+    uid: b4defc28-4ef2-4a9e-9af5-c2b27c874f6f
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 8Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-b4defc28-4ef2-4a9e-9af5-c2b27c874f6f
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 8Gi
+    phase: Bound
+kind: List
+metadata:
+  resourceVersion: ""

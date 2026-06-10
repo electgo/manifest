@@ -1,0 +1,456 @@
+# Production n8n on EKS — workflow automation, replacing prior Lightsail self-host.
+#
+# Public:    auto8.electgo.com  (Cloudflare CNAME -> ALB, DNS-only / NOT proxied)
+#            Reason: CF Bot Fight / WAF challenges /rest/* XHRs from the n8n editor and
+#            returns interstitial 403s, breaking "Could not connect to server". OpenProject
+#            uses the same DNS-only pattern. To re-enable CF proxy, add a Configuration Rule
+#            disabling Bot Fight Mode + Browser Integrity Check for hostname.
+# ALB:       electgo-prod-alb-...ap-southeast-3.elb.amazonaws.com
+#            HTTPS listener :443 forwards to electgo-eks-haproxy-tg.
+#            HTTPS listener :5600 issues HTTP 301 redirect → :443 (same host/path/query).
+#            Redirect (not forward) on :5600 prevents dual-origin session invalidation:
+#            if both ports forwarded to n8n, a browser hitting :5600 then :443 would get
+#            the same browserId in two cookies, triggering n8n's conflict detection and
+#            logging the user out. Headless clients (webhook/MCP) follow 301 automatically.
+#            ALB config is out-of-band (not in repo); SG electgo-alb-sg already allows
+#            0.0.0.0/0 :5600. To set the :5600 listener redirect action:
+#              aws elbv2 modify-listener --region ap-southeast-3 \
+#                --listener-arn <5600-listener-arn> \
+#                --default-actions 'Type=redirect,RedirectConfig={Protocol=HTTPS,Port=443,Host="#{host}",Path="/#{path}",Query="#{query}",StatusCode=HTTP_301}'
+#            To recreate the :5600 listener from scratch:
+#              aws elbv2 create-listener --region ap-southeast-3 \
+#                --load-balancer-arn <electgo-prod-alb arn> \
+#                --protocol HTTPS --port 5600 \
+#                --ssl-policy ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09 \
+#                --certificates CertificateArn=<*.electgo.com ACM arn> \
+#                --default-actions 'Type=redirect,RedirectConfig={Protocol=HTTPS,Port=443,Host="#{host}",Path="/#{path}",Query="#{query}",StatusCode=HTTP_301}'
+# Ingress:   haproxy-ingress (NodePort 32338) on `haproxy-ingress` ns. ALB target group forwards 443/5600->32338 plain HTTP.
+#            haproxy matches Host header port-insensitively, so the single `host: auto8.electgo.com`
+#            Ingress rule serves both ports.
+# IngressClassName: `haproxy`
+# StorageClass: `efs-app-1000` (EFS, RWX — immutable from original creation)
+# PostgreSQL:  shared `postgres-main-pg-db` (Percona PG 18) in `database` ns.
+#              user/db `n8n` defined in k8s/production/databases/postgres-values.yaml `users:` block;
+#              operator writes connection secret `postgres-main-pg-db-pguser-n8n`.
+#              Connect to PRIMARY service (not pgbouncer) — n8n/TypeORM uses prepared statements
+#              that break under transaction-mode pooling.
+#
+# Topology: single-node (main pod handles webhook/UI/execution). No Redis, no workers.
+#           Binary data uses database mode. PVC for config, logs, and community nodes.
+#           Promtail sidecar tails n8nEventLog*.log → Loki.
+#           Pinned to node 10.20.77.70 (most memory headroom).
+#
+# Pre-deploy:
+#   1. Ensure n8n user exists in Percona PG. From repo root:
+#        helm upgrade postgres-main percona/pg-db -n database --version 2.9.0 \
+#          -f k8s/production/databases/postgres-values.yaml
+#      (Or directly: kubectl -n database patch pg postgres-main-pg-db --type merge \
+#         -p '{"spec":{"users":[{"name":"n8n","databases":["n8n"],"grantPublicSchemaAccess":true}]}}')
+#      Verify: kubectl -n database get secret postgres-main-pg-db-pguser-n8n
+#   2. Mirror the operator-generated secret into the n8n namespace (k8s secrets are ns-scoped):
+#        kubectl -n database get secret postgres-main-pg-db-pguser-n8n -o json \
+#          | python3 -c 'import json,sys; s=json.load(sys.stdin); s["metadata"]={"name":s["metadata"]["name"],"namespace":"n8n"}; print(json.dumps(s))' \
+#          | kubectl apply -f -
+#      Re-run this if the operator ever rotates the n8n user password.
+#   3. Encryption key in `n8n-secrets` MUST be persisted forever — losing it makes existing
+#      stored credentials unrecoverable. Rotate only via documented n8n key-rotation flow.
+#   4. Cloudflare CNAME auto8.electgo.com -> electgo-prod-alb-855172431.ap-southeast-3.elb.amazonaws.com
+#      (proxied). Already in place; matches the matomo/openproject pattern.
+#
+# Deploy:
+#   kubectl apply -f k8s/production/services/n8n.yaml
+#
+# Post-deploy:
+#   kubectl -n n8n rollout status deploy/n8n --timeout=10m
+#   kubectl -n n8n logs deploy/n8n -f
+#   curl -I https://auto8.electgo.com/healthz
+#
+# Owner-account bootstrap: n8n's first browser visit prompts to create owner. Do it before
+# exposing the URL beyond the team. After owner exists, public sign-up is disabled.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: n8n
+---
+# Encryption key — used by n8n to encrypt credentials at rest. KEEP THIS VALUE STABLE.
+# Generated with: openssl rand -hex 32
+apiVersion: v1
+kind: Secret
+metadata:
+  name: n8n-secrets
+  namespace: n8n
+type: Opaque
+stringData:
+  # Source: Lightsail N8NServer_v2 (3.1.74.210) /home/ubuntu/.n8n/config — must match
+  # to keep migrated credentials decryptable. Originally generated 2024-Q3 by old n8n.
+  N8N_ENCRYPTION_KEY: "29DNFlMKocbIsnuRMXpngkiQ8UvsTHLa"
+---
+# /home/node/.n8n — config, event logs, community nodes, and old filesystem binary data.
+# EFS storageClass retained; PVC is RWX (immutable from original creation, safe for single-node).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n8n-data
+  namespace: n8n
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs-app-1000
+  volumeName: pvc-b7a72415-fe68-4fd3-85b4-2f6fbb5a562f
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: n8n-promtail
+  namespace: n8n
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+    positions:
+      filename: /tmp/positions.yaml
+    clients:
+      - url: http://loki-gateway.monitoring.svc.cluster.local:80/loki/api/v1/push
+    scrape_configs:
+      - job_name: n8n-eventlog
+        static_configs:
+          - targets: [localhost]
+            labels:
+              job: n8n
+              app: n8n
+              namespace: n8n
+              __path__: /logs/n8nEventLog*.log
+        pipeline_stages:
+          - json:
+              expressions:
+                level: level
+                message: message
+          - labels:
+              level:
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n
+  namespace: n8n
+  labels:
+    app.kubernetes.io/name: n8n
+    app.kubernetes.io/instance: n8n
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: n8n
+      app.kubernetes.io/instance: n8n
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: n8n
+        app.kubernetes.io/instance: n8n
+    spec:
+
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      nodeSelector:
+        kubernetes.io/hostname: ip-10-20-77-70.ap-southeast-3.compute.internal
+      initContainers:
+        # Wait for Percona PG operator to provision the n8n user secret + accept connections.
+        - name: wait-postgres
+          image: postgres:18-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              until pg_isready -h "${DB_POSTGRESDB_HOST}" -p "${DB_POSTGRESDB_PORT}" -U "${DB_POSTGRESDB_USER}" -d "${DB_POSTGRESDB_DATABASE}"; do
+                echo "waiting for postgres ${DB_POSTGRESDB_HOST}:${DB_POSTGRESDB_PORT}..."
+                sleep 3
+              done
+              echo "postgres ready"
+          env:
+            - name: DB_POSTGRESDB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-main-pg-db-pguser-n8n
+                  key: host
+            - name: DB_POSTGRESDB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-main-pg-db-pguser-n8n
+                  key: port
+            - name: DB_POSTGRESDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-main-pg-db-pguser-n8n
+                  key: user
+            - name: DB_POSTGRESDB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-main-pg-db-pguser-n8n
+                  key: dbname
+        # HOTFIX: Disable MCP queued execution strategy to fix tool execution timeout
+        # Ref: https://github.com/n8n-io/n8n/issues/26394
+        - name: mcp-workaround
+          image: docker.n8n.io/n8nio/n8n:2.22.5
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              # Copy original dist files to the shared volume
+              cp -r /usr/local/lib/node_modules/n8n/dist/* /mnt/n8n-dist/
+              # Apply the workaround
+              FILE="/mnt/n8n-dist/scaling/scaling.service.js"
+              if grep -q "mcpServer.setExecutionStrategy(new QueuedExecutionStrategy" "$FILE"; then
+                sed -i 's#mcpServer.setExecutionStrategy(new QueuedExecutionStrategy(mcpServer.getPendingCallsManager()));#// HOTFIX: MCP queued tool execution disabled (use DirectExecutionStrategy)\n        // mcpServer.setExecutionStrategy(new QueuedExecutionStrategy(mcpServer.getPendingCallsManager()));#' "$FILE"
+                echo "MCP workaround applied successfully"
+              else
+                echo "MCP workaround already applied or line not found"
+              fi
+          volumeMounts:
+            - name: n8n-dist
+              mountPath: /mnt/n8n-dist
+      containers:
+        - name: n8n
+          image: docker.n8n.io/n8nio/n8n:2.22.5
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5678
+              protocol: TCP
+          env:
+            # --- Public URL / proxy ---
+            - name: N8N_HOST
+              value: "auto8.electgo.com"
+            - name: N8N_PORT
+              value: "5678"
+            - name: N8N_PROTOCOL
+              value: "https"
+            - name: N8N_EDITOR_BASE_URL
+              value: "https://auto8.electgo.com"
+            - name: WEBHOOK_URL
+              value: "https://auto8.electgo.com/"
+            - name: N8N_PROXY_HOPS
+              value: "2"
+            - name: N8N_SECURE_COOKIE
+              value: "true"
+            - name: GENERIC_TIMEZONE
+              value: "Asia/Jakarta"
+            - name: TZ
+              value: "Asia/Jakarta"
+
+            # --- Database (Percona PG primary svc; not pgbouncer) ---
+            - name: DB_TYPE
+              value: "postgresdb"
+            - name: DB_POSTGRESDB_HOST
+              # Override operator-provided primary host with stable in-cluster DNS.
+              # Operator secret `host` points at *-primary already, but pin explicitly
+              # so misconfigured pgbouncer routing can't break us.
+              value: "postgres-main-pg-db-primary.database.svc.cluster.local"
+            - name: DB_POSTGRESDB_PORT
+              value: "5432"
+            - name: DB_POSTGRESDB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-main-pg-db-pguser-n8n
+                  key: dbname
+            - name: DB_POSTGRESDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-main-pg-db-pguser-n8n
+                  key: user
+            - name: DB_POSTGRESDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-main-pg-db-pguser-n8n
+                  key: password
+            - name: DB_POSTGRESDB_SCHEMA
+              value: "public"
+            # Percona PG enforces hostssl in pg_hba — n8n must connect with TLS.
+            # CA is operator-managed; reject_unauthorized=false because we don't mount the
+            # cluster CA. Tighten by mirroring `postgres-main-pg-db-cluster-ca-cert` and
+            # mounting `ca.crt` into DB_POSTGRESDB_SSL_CA when hardening.
+            - name: DB_POSTGRESDB_SSL_ENABLED
+              value: "true"
+            - name: DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED
+              value: "false"
+
+            # --- Encryption + runtime hardening ---
+            - name: N8N_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: N8N_ENCRYPTION_KEY
+            - name: N8N_LICENSE_ACTIVATION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: N8N_LICENSE_ACTIVATION_KEY
+            # N8N_RUNNERS_ENABLED removed — task runners are always-on in 2.x.
+            - name: N8N_BLOCK_ENV_ACCESS_IN_NODE
+              value: "true"
+            - name: NODE_FUNCTION_ALLOW_EXTERNAL
+              value: "moment"
+            - name: N8N_GIT_NODE_DISABLE_BARE_REPOS
+              value: "true"
+            - name: N8N_DIAGNOSTICS_ENABLED
+              value: "false"
+            - name: N8N_VERSION_NOTIFICATIONS_ENABLED
+              value: "true"
+            - name: N8N_HIRING_BANNER_ENABLED
+              value: "false"
+            - name: N8N_TEMPLATES_ENABLED
+              value: "true"
+            - name: NODE_ENV
+              value: "production"
+            - name: N8N_LOG_LEVEL
+              value: "info"
+            - name: N8N_DEFAULT_BINARY_DATA_MODE
+              value: "database"
+            - name: EXECUTIONS_DATA_PRUNE
+              value: "true"
+            - name: EXECUTIONS_DATA_MAX_AGE
+              value: "336" # 14 days
+            - name: EXECUTIONS_TIMEOUT
+              value: "3600" # 1h max per execution
+            - name: EXECUTIONS_TIMEOUT_MAX
+              value: "7200" # hard cap 2h
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.n8n
+            - name: n8n-dist
+              mountPath: /usr/local/lib/node_modules/n8n/dist
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "200m"
+            limits:
+              memory: "8Gi"
+              cpu: "2"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+        - name: promtail
+          image: grafana/promtail:3.0.0
+          imagePullPolicy: IfNotPresent
+          args: ["-config.file=/etc/promtail/promtail.yaml"]
+          ports:
+            - name: http-metrics
+              containerPort: 9080
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /logs
+              readOnly: true
+            - name: promtail-config
+              mountPath: /etc/promtail
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: n8n-data
+        - name: promtail-config
+          configMap:
+            name: n8n-promtail
+        - name: n8n-dist
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n
+  namespace: n8n
+  labels:
+    app.kubernetes.io/name: n8n
+    app.kubernetes.io/instance: n8n
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: n8n
+    app.kubernetes.io/instance: n8n
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: n8n
+  namespace: n8n
+  labels:
+    app.kubernetes.io/name: n8n
+    app.kubernetes.io/instance: n8n
+  annotations:
+    haproxy.org/forwarded-for: "true"
+    haproxy.org/forwarded-proto: "true"
+    # ALB terminates TLS; haproxy-ingress receives plain HTTP at NodePort 32338
+    # and must NOT issue HTTP->HTTPS redirects (would point to :8443, broken).
+    haproxy.org/ssl-redirect: "false"
+    # n8n long-poll + webhook executions can run minutes; raise both timeouts.
+    haproxy.org/timeout-client: "600s"
+    haproxy.org/timeout-server: "600s"
+    haproxy.org/load-balance: "roundrobin"
+spec:
+  ingressClassName: haproxy
+  tls:
+    - hosts:
+        - auto8.electgo.com
+      secretName: auto8-electgo-com-tls
+  rules:
+    - host: auto8.electgo.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: n8n
+                port:
+                  name: http
+---
+# VPA Off — recommender undershoots real RSS. Static limits (2Gi req / 8Gi limit) are source of truth.
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: n8n
+  namespace: n8n
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: n8n
+  updatePolicy:
+    updateMode: "Off"

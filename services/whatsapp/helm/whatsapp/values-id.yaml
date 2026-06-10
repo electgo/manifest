@@ -1,0 +1,7 @@
+bot:
+  script: whatsapp.js
+  port: 3001
+
+db:
+  user: pim_whatsapp
+  password: r4HdcIM7pwqnyCj

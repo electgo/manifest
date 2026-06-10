@@ -1,0 +1,163 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elasticsearch-eks-to-dev-credentials
+  namespace: database
+type: Opaque
+stringData:
+  source-host: "acc685516ce4b4781a3977af4bec2ae9-25b37aa192ac1c33.elb.ap-southeast-3.amazonaws.com"
+  source-port: "9200"
+  source-user: "egchatbot_dev"
+  source-password: "AnEcDbyONMCYA0EUf2tzkBlU"
+  target-host: "elasticsearch.database.svc.cluster.local"
+  target-port: "9200"
+  indices: "egchatbot_sg_dev egchatbot_id_dev egchatbot_staging_sg_dev egchatbot_staging_id_dev egchatbot_sg_new_dev"
+  target-user: "egchatbot_dev"
+  target-password: "AnEcDbyONMCYA0EUf2tzkBlU"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: elasticsearch-eks-to-dev
+  namespace: database
+spec:
+  activeDeadlineSeconds: 10800
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: es-migrate
+          image: python:3.12-slim
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+              ephemeral-storage: 5Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+              ephemeral-storage: 10Gi
+          env:
+            - name: SRC_HOST
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: source-host } }
+            - name: SRC_PORT
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: source-port } }
+            - name: SRC_USER
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: source-user } }
+            - name: SRC_PASS
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: source-password } }
+            - name: TGT_HOST
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: target-host } }
+            - name: TGT_PORT
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: target-port } }
+            - name: INDICES
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: indices } }
+            - name: TGT_USER
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: target-user } }
+            - name: TGT_PASS
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: target-password } }
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -uo pipefail
+              pip install --quiet elasticsearch==8.15.0
+
+              python -u - <<'PY'
+              import os, sys, time
+              from elasticsearch import Elasticsearch, helpers
+
+              src = Elasticsearch(
+                  f"http://{os.environ['SRC_HOST']}:{os.environ['SRC_PORT']}",
+                  basic_auth=(os.environ['SRC_USER'], os.environ['SRC_PASS']),
+                  request_timeout=300,
+                  max_retries=3,
+                  retry_on_timeout=True,
+              )
+              tgt = Elasticsearch(
+                  f"http://{os.environ['TGT_HOST']}:{os.environ['TGT_PORT']}",
+                  request_timeout=300,
+                  max_retries=3,
+                  retry_on_timeout=True,
+              )
+
+              indices = os.environ['INDICES'].split()
+              failed = []
+              ok = 0
+
+              for index in indices:
+                  t0 = time.time()
+                  try:
+                      print(f"--> {index}", flush=True)
+                      # Source total
+                      src_count = src.count(index=index, ignore_unavailable=True).get('count', 0)
+                      print(f"   source docs: {src_count}", flush=True)
+
+                      # Get mapping + settings
+                      mapping = src.indices.get_mapping(index=index)
+                      settings = src.indices.get_settings(index=index)
+                      idx_settings = settings[index]['settings']
+                      idx_mappings = mapping[index]['mappings']
+
+                      # Strip persistent settings we can't restore
+                      for k in ('uuid', 'creation_date', 'version', 'provided_name'):
+                          idx_settings.pop(k, None)
+                      if isinstance(idx_settings.get('index'), dict):
+                          for k in ('uuid', 'creation_date', 'version', 'provided_name', 'tier_preference'):
+                              idx_settings['index'].pop(k, None)
+                      for top in list(idx_settings.keys()):
+                          if top in ('lifecycle',):
+                              idx_settings.pop(top, None)
+
+                      if tgt.indices.exists(index=index):
+                          tgt.indices.delete(index=index)
+
+                      tgt.indices.create(index=index, settings=idx_settings, mappings=idx_mappings)
+                      print(f"   target index created", flush=True)
+
+                      # Use helpers.bulk (sync) with scan generator
+                      def gen():
+                          for hit in helpers.scan(
+                              src,
+                              index=index,
+                              size=500,
+                              request_timeout=300,
+                              preserve_order=False,
+                              scroll='5m',
+                          ):
+                              yield {
+                                  "_op_type": "index",
+                                  "_index": index,
+                                  "_id": hit["_id"],
+                                  "_source": hit.get("_source", {}),
+                              }
+
+                      success, errors = helpers.bulk(
+                          tgt,
+                          gen(),
+                          chunk_size=500,
+                          max_chunk_bytes=10485760,
+                          raise_on_error=False,
+                          request_timeout=300,
+                      )
+                      print(f"   bulk: success={success} errors={len(errors) if isinstance(errors, list) else errors}", flush=True)
+                      tgt.indices.refresh(index=index)
+                      tgt_count = tgt.count(index=index).get('count', 0)
+                      dur = time.time() - t0
+                      print(f"   done: src={src_count} tgt={tgt_count} dur={dur:.1f}s", flush=True)
+
+                      if tgt_count >= src_count:
+                          ok += 1
+                      else:
+                          failed.append((index, f"src={src_count} tgt={tgt_count}"))
+                  except Exception as exc:
+                      print(f"   FAILED: {type(exc).__name__}: {exc}", flush=True)
+                      failed.append((index, str(exc)))
+
+              print(f"elasticsearch migration complete ok={ok} failed={len(failed)}", flush=True)
+              for f in failed:
+                  print(f"  - {f}", flush=True)
+              sys.exit(1 if failed else 0)
+              PY

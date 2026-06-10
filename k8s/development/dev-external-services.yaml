@@ -1,0 +1,30 @@
+---
+# ExternalName services letting k3s-dev workloads reach EKS production databases via internal NLBs.
+# Apply to k3s-development cluster in the database namespace.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-main-instances
+  namespace: database
+spec:
+  type: ExternalName
+  externalName: a5d52b3b5ebc141bdb6f2617f8851de1-d1e7d031019415f7.elb.ap-southeast-3.amazonaws.com
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-main-instances
+  namespace: database
+spec:
+  type: ExternalName
+  externalName: acc685516ce4b4781a3977af4bec2ae9-25b37aa192ac1c33.elb.ap-southeast-3.amazonaws.com
+  ports:
+    - name: http
+      port: 9200
+      targetPort: 9200
+      protocol: TCP

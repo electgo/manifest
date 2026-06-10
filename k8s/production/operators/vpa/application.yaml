@@ -1,0 +1,78 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vpa
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: observability
+  destination:
+    namespace: kube-system
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: https://charts.fairwinds.com/stable
+    chart: vpa
+    targetRevision: 4.11.0
+    helm:
+      releaseName: vpa
+      values: |
+        # Phase 2 (2026-05-16): updater + admissionController enabled so VPAs
+        # with updateMode=Auto get their recommendations applied on pod (re)create.
+        # Per-VPA defaults bounded via spec.resourcePolicy.containerPolicies
+        # (minAllowed cpu=10m mem=32Mi, maxAllowed cpu=4 mem=8Gi). Operator-managed
+        # CRs (Percona, Strimzi, ECK) and singleton stateful DBs MUST stay
+        # updateMode=Off — see [[feedback-vpa-target-cr-not-sts]].
+        recommender:
+          enabled: true
+          extraArgs:
+            pod-recommendation-min-cpu-millicores: "10"
+            pod-recommendation-min-memory-mb: "32"
+            recommender-interval: "1m"
+            target-cpu-percentile: "0.95"
+            memory-aggregation-interval: "24h"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 200Mi
+            limits:
+              memory: 1Gi
+        updater:
+          enabled: true
+          extraArgs:
+            # Only evict when recommendation differs from request by >50% — reduces churn.
+            eviction-tolerance: "0.5"
+            # Never evict the last pod of a workload (PDB-friendly).
+            min-replicas: "1"
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+        admissionController:
+          enabled: true
+          generateCertificate: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+        metrics-server:
+          enabled: false
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+      limit: 5
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - SkipDryRunOnMissingResource=true

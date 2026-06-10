@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-eks-to-dev-credentials
+  namespace: database
+type: Opaque
+stringData:
+  source-host: "a5d52b3b5ebc141bdb6f2617f8851de1-d1e7d031019415f7.elb.ap-southeast-3.amazonaws.com"
+  source-user: "${MYSQL_SOURCE_USER}"
+  source-password: "${MYSQL_SOURCE_PASSWORD}"
+  target-host: "mysql.database.svc.cluster.local"
+  target-user: "${MYSQL_TARGET_USER}"
+  target-password: "${MYSQL_TARGET_PASSWORD}"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mysql-eks-to-dev
+  namespace: database
+spec:
+  activeDeadlineSeconds: 14400
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: mysql-migrate
+          image: mysql:8
+          resources:
+            requests:
+              cpu: 200m
+              memory: 1Gi
+              ephemeral-storage: 15Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+              ephemeral-storage: 30Gi
+          env:
+            - name: SRC_HOST
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-dev-credentials, key: source-host } }
+            - name: SRC_USER
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-dev-credentials, key: source-user } }
+            - name: SRC_PASS
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-dev-credentials, key: source-password } }
+            - name: TGT_HOST
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-dev-credentials, key: target-host } }
+            - name: TGT_USER
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-dev-credentials, key: target-user } }
+            - name: TGT_PASS
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-dev-credentials, key: target-password } }
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -uo pipefail
+              DBS=$(MYSQL_PWD="$SRC_PASS" mysql -h "$SRC_HOST" -u "$SRC_USER" -N -B -e "SHOW DATABASES" | grep -vE "^(information_schema|mysql|performance_schema|sys)$")
+              if [ -z "$DBS" ]; then
+                echo "no databases discovered from source; aborting" >&2
+                exit 1
+              fi
+              MYSQL_PWD="$SRC_PASS" mysql -h "$SRC_HOST" -u "$SRC_USER" -N -B -e "SELECT COUNT(*) FROM mysql.user WHERE plugin = 'mysql_native_password'" > /tmp/mysql_native_password.count
+              if [ "$(cat /tmp/mysql_native_password.count)" != "0" ]; then
+                echo "source has $(cat /tmp/mysql_native_password.count) mysql_native_password users; MySQL 9 target cannot preserve that auth plugin" >&2
+                echo "convert source users or run a MySQL 8-compatible target before claiming full account metadata parity" >&2
+              fi
+              MYSQL_PWD="$SRC_PASS" mysql -h "$SRC_HOST" -u "$SRC_USER" -N -B -e "
+                SELECT CONCAT('SHOW CREATE USER ', QUOTE(user), '@', QUOTE(host), ';')
+                FROM mysql.user
+                WHERE user NOT IN ('mysql.infoschema','mysql.session','mysql.sys')
+                ORDER BY user, host;
+              " > /tmp/show-create-users.sql
+              : > /tmp/mysql-users-grants.sql
+              while read -r stmt; do
+                MYSQL_PWD="$SRC_PASS" mysql -h "$SRC_HOST" -u "$SRC_USER" -N -B -e "$stmt" | cut -f2- >> /tmp/mysql-users-grants.sql || true
+                echo ";" >> /tmp/mysql-users-grants.sql
+              done < /tmp/show-create-users.sql
+              MYSQL_PWD="$SRC_PASS" mysql -h "$SRC_HOST" -u "$SRC_USER" -N -B -e "
+                SELECT CONCAT('SHOW GRANTS FOR ', QUOTE(user), '@', QUOTE(host), ';')
+                FROM mysql.user
+                WHERE user NOT IN ('mysql.infoschema','mysql.session','mysql.sys')
+                ORDER BY user, host;
+              " > /tmp/show-grants.sql
+              while read -r stmt; do
+                MYSQL_PWD="$SRC_PASS" mysql -h "$SRC_HOST" -u "$SRC_USER" -N -B -e "$stmt" | sed 's/$/;/' >> /tmp/mysql-users-grants.sql || true
+              done < /tmp/show-grants.sql
+              MYSQL_PWD="$TGT_PASS" mysql -h "$TGT_HOST" -u "$TGT_USER" --force < /tmp/mysql-users-grants.sql || true
+              failed=""; ok=0
+              for db in $DBS; do
+                dump="/tmp/${db}.sql.gz"
+                MYSQL_PWD="$SRC_PASS" mysqldump -h "$SRC_HOST" -u "$SRC_USER" --databases "$db" --single-transaction --skip-lock-tables --set-gtid-purged=OFF --routines --triggers --events --hex-blob --no-tablespaces --column-statistics=0 | gzip > "$dump"
+                dump_rc=${PIPESTATUS[0]}
+                if [ "$dump_rc" -ne 0 ]; then failed="$failed $db(dump)"; continue; fi
+                zcat "$dump" | MYSQL_PWD="$TGT_PASS" mysql -h "$TGT_HOST" -u "$TGT_USER" --force --max-allowed-packet=512M
+                restore_rc=${PIPESTATUS[1]}
+                if [ "$restore_rc" -ne 0 ]; then failed="$failed $db(restore)"; else ok=$((ok+1)); fi
+                rm -f "$dump"
+              done
+              echo "mysql migration complete ok=$ok failed=$failed"
+              [ -n "$failed" ] && exit 1

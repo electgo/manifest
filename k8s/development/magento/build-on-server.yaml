@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: magento-builder
+  namespace: magento
+spec:
+  restartPolicy: Never
+  nodeName: electgo-dev-server
+  containers:
+  - name: docker
+    image: docker:latest
+    command:
+    - /bin/sh
+    - -c
+    - |
+      # Build Magento image on the server
+      docker build -t public.ecr.aws/s4b7y7h1/magento:2.4.7 /build \
+        --build-arg MAGENTO_PUBLIC_KEY=8f33b54801140c208b8558bccfb48fe7 \
+        --build-arg MAGENTO_PRIVATE_KEY=7de6dce9203e60ea965bf77904ad7430
+      
+      # Push to ECR
+      docker push public.ecr.aws/s4b7y7h1/magento:2.4.7
+      
+      echo "Build and push completed!"
+    env:
+    - name: DOCKER_BUILDKIT
+      value: "1"
+    volumeMounts:
+    - name: docker-socket
+      mountPath: /var/run/docker.sock
+    - name: build-context
+      mountPath: /build
+  volumes:
+  - name: docker-socket
+    hostPath:
+      path: /var/run/docker.sock
+      type: Socket
+  - name: build-context
+    hostPath:
+      path: /var/lib/rancher/k3s/agent/pod-logs/magento-build-context
+      type: DirectoryOrCreate
+  tolerations:
+  - operator: Exists

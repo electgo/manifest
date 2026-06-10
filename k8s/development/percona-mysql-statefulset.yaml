@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: percona-mysql
+  namespace: database
+spec:
+  replicas: 1
+  serviceName: percona-mysql
+  selector:
+    matchLabels:
+      app: percona-mysql
+  template:
+    metadata:
+      labels:
+        app: percona-mysql
+    spec:
+      containers:
+      - name: mysql
+        image: percona/percona-server:8.0.33
+        ports:
+        - containerPort: 3306
+          name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: percona-credentials
+              key: root-password
+        - name: MYSQL_DATABASE
+          value: pim_master
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: percona-credentials
+              key: username
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: percona-credentials
+              key: password
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: "1"
+            memory: 2Gi
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+        # Mount path matches Percona /etc/my.cnf -> !includedir /etc/my.cnf.d
+        # Previous /etc/mysql/conf.d/ was ignored — caused sql_mode override to silently fail
+        - name: config
+          mountPath: /etc/my.cnf.d
+      volumes:
+      - name: config
+        configMap:
+          name: percona-config
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: local-path
+      resources:
+        requests:
+          storage: 50Gi

@@ -1,0 +1,98 @@
+---
+# One-shot CronJob: on 2026-05-24, if openproject-web pod is Ready, delete the
+# orphaned bundled PG PVC `data-openproject-postgresql-0`. The PVC was kept
+# as a 1-week DR fallback after the migration to postgres-main on 2026-05-17.
+# After successful run the CronJob suspends itself so it does not fire again.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openproject-pvc-cleanup
+  namespace: openproject
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: openproject-pvc-cleanup
+  namespace: openproject
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get"]
+  - apiGroups: ["batch"]
+    resources: ["cronjobs"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: openproject-pvc-cleanup
+  namespace: openproject
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: openproject-pvc-cleanup
+subjects:
+  - kind: ServiceAccount
+    name: openproject-pvc-cleanup
+    namespace: openproject
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: openproject-bundled-pvc-cleanup
+  namespace: openproject
+spec:
+  # Fires hourly starting 2026-05-24 (UTC); guarded by date check inside.
+  # Self-suspends after first successful delete.
+  schedule: "0 * * * *"
+  timeZone: "Etc/UTC"
+  startingDeadlineSeconds: 300
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  suspend: false
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 604800
+      template:
+        spec:
+          serviceAccountName: openproject-pvc-cleanup
+          restartPolicy: OnFailure
+          containers:
+            - name: cleanup
+              image: bitnami/kubectl:1.31
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  TODAY=$(date -u +%Y-%m-%d)
+                  GATE="2026-05-24"
+                  if [[ "$TODAY" < "$GATE" ]]; then
+                    echo "today=$TODAY < gate=$GATE; not yet"; exit 0
+                  fi
+                  PVC="data-openproject-postgresql-0"
+                  if ! kubectl get pvc "$PVC" >/dev/null 2>&1; then
+                    echo "PVC $PVC already gone; self-suspending"
+                    kubectl patch cronjob openproject-bundled-pvc-cleanup --type=merge -p '{"spec":{"suspend":true}}'
+                    exit 0
+                  fi
+                  READY=$(kubectl get deploy openproject-web -o jsonpath='{.status.readyReplicas}')
+                  if [[ "${READY:-0}" -lt 1 ]]; then
+                    echo "openproject-web not Ready (readyReplicas=${READY:-0}); skipping delete this run"
+                    exit 0
+                  fi
+                  echo "Deleting PVC $PVC"
+                  kubectl delete pvc "$PVC"
+                  echo "Self-suspending CronJob"
+                  kubectl patch cronjob openproject-bundled-pvc-cleanup --type=merge -p '{"spec":{"suspend":true}}'
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 64Mi

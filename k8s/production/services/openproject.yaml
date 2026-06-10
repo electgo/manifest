@@ -1,0 +1,173 @@
+# Source: JagoanHosting (103.27.206.86) — OpenProject 12.5.8, Apache2, PostgreSQL 14.20 (openproject DB ~28MB)
+# Target: EKS production (electgo-production EKS), namespace `openproject`
+#
+# Helm chart: openproject/openproject 13.5.1 (appVersion 17.3.1)
+# Repo: https://charts.openproject.org
+# Docs: https://www.openproject.org/docs/installation-and-operations/installation/helm-chart/
+# Image: docker.io/openproject/openproject:17.3.1-slim
+#
+# Cluster wiring:
+#   Public:    pm.electgo.com  (Cloudflare CNAME -> ALB, no proxy)
+#   ALB:       electgo-prod-alb-855172431.ap-southeast-3.elb.amazonaws.com (HTTPS:443 ACM cert *.electgo.com)
+#   Ingress:   haproxy-ingress (NodePort 32338) on `haproxy-ingress` ns. ALB target group forwards 443->32338 plain HTTP.
+#   IngressClassName: `haproxy`
+#   StorageClass: `gp3-encrypted` (EBS gp3, RWO, encrypted, retain)
+#   PostgreSQL:  bundled by chart (Bitnami subchart, in `openproject` ns) — self-contained.
+#                postgres-main (Percona PG) reserved for other shared services once stable.
+#
+# Pre-deploy:
+#   1. Initial admin login: admin / admin — chart sets password_reset=true so first UI login forces change.
+#   2. (Optional) Migrate JagoanHosting `openproject` DB into bundled PG after first boot:
+#        kubectl -n openproject exec -i sts/openproject-postgresql -- psql -U openproject -d openproject < dump.sql
+#      Apply ONLY after fresh chart-managed schema is created and you have a 12.5.8 -> 17.3.1 plan.
+#      Easiest: skip data migration, accept fresh OpenProject 17 install.
+#
+# Deploy:
+#   helm repo add openproject https://charts.openproject.org && helm repo update
+#   kubectl apply -f k8s/production/services/openproject.yaml
+#   helm upgrade --install openproject openproject/openproject \
+#     --namespace openproject \
+#     --version 13.5.1 \
+#     -f <(kubectl get cm openproject-helm-values -n openproject -o jsonpath='{.data.values\.yaml}')
+#
+# Post-deploy:
+#   kubectl -n openproject rollout status deploy/openproject-web --timeout=15m
+#   curl -I https://pm.electgo.com/health_checks/default
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openproject
+---
+# Helm values pinned to chart 13.5.1 schema (helm show values openproject/openproject --version 13.5.1)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openproject-helm-values
+  namespace: openproject
+data:
+  values.yaml: |
+    image:
+      registry: docker.io
+      repository: openproject/openproject
+      tag: "17.3.1-slim"
+      imagePullPolicy: IfNotPresent
+
+    replicaCount: 1
+    backgroundReplicaCount: 1
+
+    openproject:
+      host: pm.electgo.com
+      https: true
+      hsts: true
+      cache:
+        store: memcache
+      admin_user:
+        # Initial admin password is "admin"; password_reset=true forces change on first UI login.
+        password: "admin"
+        password_reset: "true"
+        name: "ElectGo Admin"
+        mail: "ptdigitalsolusigrup@gmail.com"
+      postgresStatementTimeout: 120s
+
+    # External Percona PG (postgres-main) — bundled STS retired 2026-05-17 to consolidate.
+    # Role + DB live in postgres-main cluster, accessed via pgbouncer.
+    # Creds mirrored from operator Secret database/postgres-main-pg-db-pguser-openproject
+    # into openproject/openproject-pgmain-creds via Kyverno ClusterPolicy
+    # (see openproject-pg-creds-mirror.yaml). Operator-managed password rotation
+    # propagates automatically. adminPasswordKey points at the same key since
+    # bundled=false (no admin operations performed by the chart).
+    postgresql:
+      bundled: false
+      connection:
+        host: postgres-main-pg-db-pgbouncer.database.svc.cluster.local
+        port: 5432
+      auth:
+        existingSecret: openproject-pgmain-creds
+        secretKeys:
+          adminPasswordKey: password
+          userPasswordKey: password
+        username: openproject
+        database: openproject
+
+    # Bundled memcached — single replica, small footprint
+    memcached:
+      bundled: true
+
+    # PVC for /var/openproject/assets attachments. Pinned to live state: efs-app-1000, 5Gi.
+    persistence:
+      enabled: true
+      storageClassName: efs-app-1000
+      accessModes:
+        - ReadWriteOnce
+      size: 5Gi
+
+    s3:
+      enabled: false
+
+    ingress:
+      enabled: true
+      ingressClassName: haproxy
+      host: pm.electgo.com
+      path: /
+      pathType: Prefix
+      annotations:
+        haproxy.org/load-balance: roundrobin
+        haproxy.org/timeout-server: "600s"
+        haproxy.org/timeout-client: "600s"
+        haproxy.org/forwarded-for: "true"
+      tls:
+        enabled: true
+        secretName: pm-electgo-com-tls
+
+    # Web pod resources
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "50m"
+      limits:
+        memory: "3Gi"
+        cpu: "2"
+
+    # Background workers (Sidekiq-equivalent). Default queue, 1 replica.
+    workers:
+      default:
+        queues: ""
+        replicaCount: 1
+        strategy:
+          type: Recreate
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "50m"
+          limits:
+            memory: "1500Mi"
+            cpu: "1"
+
+    # IMAP incoming-email cron — disabled. Re-enable + configure when mail integration needed.
+    cron:
+      enabled: false
+
+    # Hocuspocus realtime collaboration backend. Resources match VPA right-sizing.
+    hocuspocus:
+      enabled: true
+      resources:
+        requests:
+          cpu: "25m"
+          memory: "256Mi"
+        limits:
+          cpu: "2"
+          memory: "1Gi"
+
+    # OpenProject env vars (Rails). Outbound mail disabled — mail.electgo.com retired
+    # 2026-05-17 and no replacement relay configured. Re-add OPENPROJECT_EMAIL__DELIVERY__*
+    # / OPENPROJECT_SMTP__* when a relay (SES/Gmail/etc.) is picked.
+    environment:
+      OPENPROJECT_SEED__ADMIN__USER__PASSWORD__RESET: "true"
+      OPENPROJECT_RAILS__FORCE__SSL: "true"
+      # ALB sets X-Forwarded-Proto; trust forwarded headers
+      OPENPROJECT_RAILS__TRUSTED__PROXIES: "10.20.0.0/16"
+
+    metrics:
+      enabled: false
+      serviceMonitor:
+        enabled: false

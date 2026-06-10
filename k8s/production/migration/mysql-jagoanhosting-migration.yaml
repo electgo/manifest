@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-jagoanhosting-credentials
+  namespace: database
+type: Opaque
+stringData:
+  source-host: "103.27.206.86"
+  source-ssh-user: "root"
+  target-host: "mysql-main-mysql-primary.database.svc.cluster.local"
+  target-user: "root"
+  target-password: "ElectGo2026Mysql"
+  databases: "powerbi_report zapier_data"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mysql-jagoanhosting-migration
+  namespace: database
+spec:
+  activeDeadlineSeconds: 10800
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: mysql-migrate
+        image: mysql:8.0.45
+        resources:
+          requests:
+            cpu: 200m
+            memory: 1Gi
+            ephemeral-storage: 5Gi
+          limits:
+            cpu: 2
+            memory: 4Gi
+            ephemeral-storage: 10Gi
+        env:
+        - name: SRC_HOST
+          valueFrom: { secretKeyRef: { name: mysql-jagoanhosting-credentials, key: source-host } }
+        - name: SRC_SSH_USER
+          valueFrom: { secretKeyRef: { name: mysql-jagoanhosting-credentials, key: source-ssh-user } }
+        - name: TGT_HOST
+          valueFrom: { secretKeyRef: { name: mysql-jagoanhosting-credentials, key: target-host } }
+        - name: TGT_USER
+          valueFrom: { secretKeyRef: { name: mysql-jagoanhosting-credentials, key: target-user } }
+        - name: TGT_PASS
+          valueFrom: { secretKeyRef: { name: mysql-jagoanhosting-credentials, key: target-password } }
+        - name: DATABASES
+          valueFrom: { secretKeyRef: { name: mysql-jagoanhosting-credentials, key: databases } }
+        volumeMounts:
+        - name: ssh-key
+          mountPath: /etc/ssh-key
+          readOnly: true
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -uo pipefail
+          apt-get update -qq && apt-get install -y -qq openssh-client > /dev/null 2>&1 || \
+            (microdnf install -y openssh-clients 2>/dev/null || yum install -y openssh-clients 2>/dev/null)
+          install -m 600 /etc/ssh-key/id_rsa /tmp/id_rsa
+          SSH_OPTS="-i /tmp/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30"
+          echo "Source SSH: $SRC_SSH_USER@$SRC_HOST  Target: $TGT_HOST"
+          echo "--- prep target ---"
+          MYSQL_PWD="$TGT_PASS" mysql -h "$TGT_HOST" -u "$TGT_USER" \
+            -e "SET GLOBAL max_allowed_packet=536870912; SET GLOBAL net_buffer_length=16384;"
+          PREP_RC=$?
+          echo "prep rc=$PREP_RC"
+          FAILED=""; OK=0
+          for DB in $DATABASES; do
+            echo "============================================"
+            echo "DROP+RECREATE $DB at $(date)"
+            MYSQL_PWD="$TGT_PASS" mysql -h "$TGT_HOST" -u "$TGT_USER" \
+              -e "DROP DATABASE IF EXISTS \`$DB\`; CREATE DATABASE \`$DB\`;"
+            echo "DUMP+RESTORE $DB at $(date)"
+            ssh $SSH_OPTS "$SRC_SSH_USER@$SRC_HOST" \
+              "sudo mysqldump --single-transaction --skip-lock-tables \
+                --routines --triggers --hex-blob --no-tablespaces \
+                --column-statistics=0 --databases $DB 2>/tmp/dump.err | gzip" \
+              | gunzip \
+              | MYSQL_PWD="$TGT_PASS" mysql -h "$TGT_HOST" -u "$TGT_USER" \
+                  --max-allowed-packet=512M --net-buffer-length=16384 --connect-timeout=300 \
+                  2>/tmp/restore.err
+            REST_RC=${PIPESTATUS[2]}
+            echo "restore rc=$REST_RC"
+            if [ "$REST_RC" -ne 0 ]; then
+              echo "RESTORE STDERR (tail):"; tail -30 /tmp/restore.err
+              FAILED="$FAILED $DB(restore)"
+              continue
+            fi
+            SRC_ROWS=$(ssh $SSH_OPTS "$SRC_SSH_USER@$SRC_HOST" \
+              "sudo mysql -BNe \"SELECT SUM(table_rows) FROM information_schema.tables WHERE table_schema='$DB';\"")
+            TGT_ROWS=$(MYSQL_PWD="$TGT_PASS" mysql -h "$TGT_HOST" -u "$TGT_USER" \
+              -BNe "SELECT SUM(table_rows) FROM information_schema.tables WHERE table_schema='$DB';")
+            echo "rows src=$SRC_ROWS tgt=$TGT_ROWS"
+            OK=$((OK+1))
+          done
+          echo "============================================"
+          echo "Done at $(date). Success: $OK"
+          [ -n "$FAILED" ] && { echo "Failed:$FAILED"; exit 1; }
+          exit 0
+      volumes:
+      - name: ssh-key
+        secret:
+          secretName: jagoanhosting-ssh-key
+          defaultMode: 0400

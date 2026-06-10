@@ -1,0 +1,256 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: database
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elasticsearch-credentials
+  namespace: database
+type: Opaque
+stringData:
+  password: "Y*zmfY*Q5cLMZuMApzdT"  # Same as source for easier migration
+  username: "elastic"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: database
+data:
+  elasticsearch.yml: |
+    cluster.name: "elasticsearch-main"
+    node.name: "${HOSTNAME}"
+    network.host: "0.0.0.0"
+    network.publish_host: "_eth0:ipv4_"
+    discovery.type: "single-node"
+    xpack.security.enabled: true
+    xpack.security.http.ssl.enabled: false
+    xpack.security.transport.ssl.enabled: false
+    path.data: "/usr/share/elasticsearch/data"
+    path.logs: "/usr/share/elasticsearch/logs"
+    bootstrap.memory_lock: false
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: database
+spec:
+  serviceName: elasticsearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      initContainers:
+      - name: sysctl
+        image: busybox:1.36
+        command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']
+        securityContext:
+          privileged: true
+          runAsUser: 0
+      - name: volume-permissions
+        image: busybox:1.36
+        command: ['sh', '-c', 'chown -R 1000:1000 /usr/share/elasticsearch/data']
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        securityContext:
+          runAsUser: 0
+      containers:
+      - name: elasticsearch
+        image: elasticsearch:9.1.4
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        env:
+        - name: ES_JAVA_OPTS
+          value: "-Xms256m -Xmx256m"
+        - name: ELASTIC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: password
+        - name: discovery.type
+          value: "single-node"
+        ports:
+        - containerPort: 9200
+          name: http
+          protocol: TCP
+        - containerPort: 9300
+          name: transport
+          protocol: TCP
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+          subPath: elasticsearch.yml
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+      volumes:
+      - name: config
+        configMap:
+          name: elasticsearch-config
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      storageClassName: nfs-client-agent-1
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: database
+  labels:
+    app: elasticsearch
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9200
+    targetPort: 9200
+    name: http
+  selector:
+    app: elasticsearch
+---
+# Migration Job: Migrate data from Elastic_Dev to K3s ES
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: elasticsearch-migration
+  namespace: database
+spec:
+  activeDeadlineSeconds: 21600  # 6 hours
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: es-migrate
+        image: elasticdump/elasticsearch-dump:v6.110.0
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        env:
+        - name: SOURCE_HOST
+          value: "13.251.108.93:9200"
+        - name: SOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-lightsail-credentials
+              key: password
+        - name: TARGET_HOST
+          value: "10.43.30.159:9200"  # Use ClusterIP directly
+        - name: TARGET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: password
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting Elasticsearch migration from Elastic_Dev to K3s..."
+          echo "Source: ${SOURCE_HOST}"
+          echo "Target: ${TARGET_HOST}"
+          echo "Timestamp: $(date)"
+          echo "========================================"
+
+          SRC_URL="http://elastic:${SOURCE_PASSWORD}@${SOURCE_HOST}"
+          TGT_URL="http://elastic:${TARGET_PASSWORD}@${TARGET_HOST}"
+
+          TOTAL_ERRORS=0
+
+          echo "Elasticsearch migration starting..."
+          echo "Proceeding with migration..."
+          # elasticdump will fail with clear error if ES is not ready
+
+          # Get list of user indices from source (exclude system indices)
+          INDICES=$(wget -qO- --user=elastic --password="${SOURCE_PASSWORD}" \
+            "http://${SOURCE_HOST}/_cat/indices?h=index" | grep -v '^\.' | tr -d ' ')
+
+          echo "Found indices: $INDICES"
+
+          # Pre-clean: delete existing user indices on target
+          echo "Pre-cleaning target indices..."
+          for INDEX in $INDICES; do
+            [ -z "$INDEX" ] && continue
+            wget -qO- --method=DELETE \
+              --user=elastic --password="${TARGET_PASSWORD}" \
+              "http://${TARGET_HOST}/${INDEX}" >/dev/null 2>&1 && \
+              echo "  Deleted existing: ${INDEX}" || true
+          done
+
+          for INDEX in $INDICES; do
+            [ -z "$INDEX" ] && continue
+            echo ""
+            echo "Migrating index: $INDEX"
+
+            # Settings
+            elasticdump \
+              --input="${SRC_URL}/${INDEX}" \
+              --output="${TGT_URL}/${INDEX}" \
+              --type=settings 2>&1
+            [ $? -ne 0 ] && TOTAL_ERRORS=$((TOTAL_ERRORS+1))
+
+            # Mapping
+            elasticdump \
+              --input="${SRC_URL}/${INDEX}" \
+              --output="${TGT_URL}/${INDEX}" \
+              --type=mapping 2>&1
+            [ $? -ne 0 ] && TOTAL_ERRORS=$((TOTAL_ERRORS+1))
+
+            # Data
+            elasticdump \
+              --input="${SRC_URL}/${INDEX}" \
+              --output="${TGT_URL}/${INDEX}" \
+              --type=data \
+              --limit=1000 \
+              --scrollTime=10m 2>&1
+            if [ $? -ne 0 ]; then
+              echo "ERROR: data dump failed for $INDEX"
+              TOTAL_ERRORS=$((TOTAL_ERRORS+1))
+            else
+              SRC_COUNT=$(wget -qO- --user=elastic --password="${SOURCE_PASSWORD}" \
+                "http://${SOURCE_HOST}/${INDEX}/_count" | grep -o '"count":[0-9]*' | grep -o '[0-9]*')
+              TGT_COUNT=$(wget -qO- --user=elastic --password="${TARGET_PASSWORD}" \
+                "http://${TARGET_HOST}/${INDEX}/_count" | grep -o '"count":[0-9]*' | grep -o '[0-9]*')
+              echo "  Counts — source: $SRC_COUNT, target: $TGT_COUNT"
+            fi
+          done
+
+          echo ""
+          echo "========================================"
+          echo "Migration completed! Total errors: $TOTAL_ERRORS"
+          echo "Timestamp: $(date)"
+          exit $TOTAL_ERRORS
+---
+# Source credentials for migration
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elasticsearch-lightsail-credentials
+  namespace: database
+type: Opaque
+stringData:
+  password: "Y*zmfY*Q5cLMZuMApzdT"

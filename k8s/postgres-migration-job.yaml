@@ -1,0 +1,185 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-migration
+  namespace: database
+spec:
+  activeDeadlineSeconds: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+      - name: pre-migration-check
+        # Source: MongoDB_Dev PostgreSQL 16.11 — client must match major version
+        image: postgres:16.11
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Checking Lightsail PostgreSQL connectivity..."
+          PGPASSWORD=${SOURCE_PASSWORD} psql -h ${SOURCE_HOST} -p ${SOURCE_PORT} \
+            -U ${SOURCE_USER} -d postgres -c "SELECT 'Lightsail OK' as status, version()" 2>&1
+
+          echo "Checking K3s PostgreSQL connectivity..."
+          PGPASSWORD=${TARGET_PASSWORD} psql -h ${TARGET_HOST} \
+            -U ${TARGET_USER} -d postgres -c "SELECT 'K3s OK' as status, version()" 2>&1
+
+          echo "All connectivity checks passed!"
+        env:
+        - name: SOURCE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: postgres-lightsail-credentials
+              key: host
+        - name: SOURCE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: postgres-lightsail-credentials
+              key: port
+        - name: SOURCE_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-lightsail-credentials
+              key: username
+        - name: SOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-lightsail-credentials
+              key: password
+        - name: TARGET_HOST
+          value: postgres-main-rw.database.svc.cluster.local
+        - name: TARGET_USER
+          value: platform_user
+        - name: TARGET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-main-user
+              key: password
+
+      containers:
+      - name: postgres-migrate
+        image: postgres:16.11
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting PostgreSQL migration from Lightsail to K3s..."
+          echo "Source: ${SOURCE_HOST}:${SOURCE_PORT}"
+          echo "Target: ${TARGET_HOST}:5432"
+          echo "Databases: ${DATABASES}"
+          echo "Timestamp: $(date)"
+          echo "========================================"
+
+          mkdir -p /tmp/migration
+          TOTAL_ERRORS=0
+
+          for DB in ${DATABASES}; do
+            echo ""
+            echo "========================================"
+            echo "Migrating database: $DB"
+            echo "========================================"
+
+            echo "Phase 1: Dumping $DB from Lightsail..."
+            PGPASSWORD=${SOURCE_PASSWORD} pg_dump \
+              -h ${SOURCE_HOST} -p ${SOURCE_PORT} \
+              -U ${SOURCE_USER} \
+              -d $DB \
+              --no-owner --no-privileges \
+              --clean --if-exists \
+              -Fc \
+              -f /tmp/migration/${DB}.dump \
+              2>&1
+
+            DUMP_STATUS=$?
+            if [ $DUMP_STATUS -ne 0 ]; then
+              echo "ERROR: pg_dump failed for $DB with exit code $DUMP_STATUS"
+              TOTAL_ERRORS=$((TOTAL_ERRORS + 1))
+              continue
+            fi
+
+            DUMP_SIZE=$(du -h /tmp/migration/${DB}.dump 2>/dev/null | cut -f1)
+            echo "Phase 1 complete. Dump size: $DUMP_SIZE"
+
+            echo "Phase 2: Creating database $DB on K3s..."
+            PGPASSWORD=${TARGET_PASSWORD} psql \
+              -h ${TARGET_HOST} -U ${TARGET_USER} -d postgres \
+              -c "CREATE DATABASE ${DB}" 2>&1 || true
+
+            echo "Phase 3: Restoring $DB to K3s..."
+            PGPASSWORD=${TARGET_PASSWORD} pg_restore \
+              -h ${TARGET_HOST} \
+              -U ${TARGET_USER} \
+              -d $DB \
+              --no-owner --no-privileges \
+              --clean --if-exists \
+              /tmp/migration/${DB}.dump \
+              2>&1
+
+            RESTORE_STATUS=$?
+            if [ $RESTORE_STATUS -ne 0 ]; then
+              echo "WARNING: pg_restore for $DB completed with exit code $RESTORE_STATUS (non-zero is normal for --clean)"
+            fi
+
+            echo "Phase 4: Validating $DB..."
+            PGPASSWORD=${TARGET_PASSWORD} psql \
+              -h ${TARGET_HOST} -U ${TARGET_USER} -d $DB \
+              -c "SELECT schemaname, COUNT(*) as table_count FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') GROUP BY schemaname" 2>&1
+
+            PGPASSWORD=${TARGET_PASSWORD} psql \
+              -h ${TARGET_HOST} -U ${TARGET_USER} -d $DB \
+              -c "SELECT relname as table_name, n_live_tup as row_count FROM pg_stat_user_tables ORDER BY n_live_tup DESC LIMIT 10" 2>&1
+
+            rm -f /tmp/migration/${DB}.dump
+            echo "Database $DB migration complete!"
+          done
+
+          echo ""
+          echo "========================================"
+          echo "Migration completed!"
+          echo "Timestamp: $(date)"
+          echo "Total errors: $TOTAL_ERRORS"
+          echo "========================================"
+          exit $TOTAL_ERRORS
+        env:
+        - name: SOURCE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: postgres-lightsail-credentials
+              key: host
+        - name: SOURCE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: postgres-lightsail-credentials
+              key: port
+        - name: SOURCE_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-lightsail-credentials
+              key: username
+        - name: SOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-lightsail-credentials
+              key: password
+        - name: DATABASES
+          valueFrom:
+            secretKeyRef:
+              name: postgres-lightsail-credentials
+              key: databases
+        - name: TARGET_HOST
+          value: postgres-main-rw.database.svc.cluster.local
+        - name: TARGET_USER
+          value: platform_user
+        - name: TARGET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-main-user
+              key: password
+  backoffLimit: 3

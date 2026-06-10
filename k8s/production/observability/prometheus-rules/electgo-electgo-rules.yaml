@@ -1,0 +1,192 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: electgo-production-rules
+  namespace: monitoring
+  labels:
+    release: kps
+    app.kubernetes.io/part-of: observability
+spec:
+  groups:
+    - name: electgo.cluster
+      interval: 30s
+      rules:
+        - alert: NodeCPUHigh
+          expr: 100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 80
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "Node {{ $labels.instance }} CPU > 80% for 15m"
+            description: "Avg CPU on {{ $labels.instance }} = {{ $value | printf \"%.1f\" }}%."
+
+        - alert: NodeMemoryHigh
+          expr: 100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 85
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "Node {{ $labels.instance }} memory > 85% for 15m"
+
+        - alert: NodeDiskHigh
+          expr: 100 * (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) > 80
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "Node {{ $labels.instance }} filesystem {{ $labels.mountpoint }} > 80%"
+
+        - alert: NodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "Node {{ $labels.node }} NotReady for 5m"
+
+        - alert: ClusterPodRestartRateHigh
+          expr: sum(increase(kube_pod_container_status_restarts_total[5m])) > 5
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "Cluster-wide container restarts > 5 in 5m"
+            description: "{{ $value | printf \"%.0f\" }} restarts in last 5m."
+
+        - alert: PVCPending
+          expr: kube_persistentvolumeclaim_status_phase{phase="Pending"} > 0
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} stuck Pending"
+
+        - alert: APIServerErrorRateHigh
+          expr: sum(rate(apiserver_request_total{code=~"5.."}[5m])) > 0.5
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "API server 5xx rate > 0.5/s for 10m"
+
+    - name: electgo.workloads
+      interval: 30s
+      rules:
+        # Per-namespace pod CPU/mem/restarts for db, PIM, stateful workloads.
+        # Selector covers the namespaces the CW alarms used to watch.
+        # Per-pod ratio first, then 95th-percentile across the namespace.
+        # Avoids the sum/sum skew when some pods in the ns have no limits set
+        # (denominator drops out, numerator stays, ratio explodes).
+        - alert: NamespacePodCPUHigh
+          expr: |
+            100 * quantile by (namespace) (0.95,
+              rate(container_cpu_usage_seconds_total{namespace=~"database|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich|n8n|matomo|openproject|elastic-system|kafka-system|haproxy-ingress", container!="", container!="POD"}[5m])
+              / on (namespace, pod, container) group_left
+              kube_pod_container_resource_limits{resource="cpu"}
+            ) > 80
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "Namespace {{ $labels.namespace }} p95 pod CPU > 80% of limit for 15m"
+
+        - alert: NamespacePodMemoryHigh
+          expr: |
+            100 * quantile by (namespace) (0.95,
+              container_memory_working_set_bytes{namespace=~"database|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich|n8n|matomo|openproject|elastic-system|kafka-system|haproxy-ingress", container!="", container!="POD"}
+              / on (namespace, pod, container) group_left
+              kube_pod_container_resource_limits{resource="memory"}
+            ) > 85
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "Namespace {{ $labels.namespace }} p95 pod memory > 85% of limit for 15m"
+
+        - alert: NamespacePodRestarts
+          expr: sum by (namespace) (increase(kube_pod_container_status_restarts_total{namespace=~"database|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich|n8n|matomo|openproject|elastic-system|kafka-system|haproxy-ingress"}[5m])) > 3
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "Namespace {{ $labels.namespace }} > 3 container restarts in 5m"
+
+    - name: electgo.cronjobs
+      interval: 1m
+      rules:
+        # Replaces upstream KubeJobFailed (disabled in helm values). The
+        # upstream rule fires on `kube_job_failed > 0` which holds true for
+        # any failed Job that's still in k8s history — every old failure
+        # remains "firing" forever. Window-scope to recent failures.
+        - alert: CronJobRecentFailure
+          expr: sum by (namespace, job_name) (increase(kube_job_status_failed[1h])) > 0
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "Job {{ $labels.namespace }}/{{ $labels.job_name }} failed in last hour"
+            runbook_url: "https://grafana.electgo.com/d/electgo-cronjobs?var-namespace={{ $labels.namespace }}"
+
+        - alert: CronJobNeverSucceeded
+          expr: |
+            kube_cronjob_status_last_schedule_time
+            unless on(namespace, cronjob) kube_cronjob_status_last_successful_time
+            unless on(namespace, cronjob) kube_cronjob_spec_suspend == 1
+          for: 24h
+          labels: { severity: warning }
+          annotations:
+            summary: "CronJob {{ $labels.namespace }}/{{ $labels.cronjob }} fired but has never succeeded (>24h)"
+            runbook_url: "https://grafana.electgo.com/d/electgo-cronjobs?var-namespace={{ $labels.namespace }}&var-cronjob={{ $labels.cronjob }}"
+
+        # Self-adjusting overdue check. next_schedule_time = the moment the
+        # cron *should* fire next; if that moment is already >1h in the past
+        # and the cron hasn't fired, something is stuck. Works for daily and
+        # frequent schedules without a fixed-window heuristic.
+        - alert: CronJobOverdue
+          expr: (time() - kube_cronjob_next_schedule_time) > 3600 unless on(namespace, cronjob) kube_cronjob_spec_suspend == 1
+          for: 30m
+          labels: { severity: warning }
+          annotations:
+            summary: "CronJob {{ $labels.namespace }}/{{ $labels.cronjob }} missed its scheduled fire (>1h overdue)"
+            runbook_url: "https://grafana.electgo.com/d/electgo-cronjobs?var-namespace={{ $labels.namespace }}&var-cronjob={{ $labels.cronjob }}"
+
+    - name: electgo.databases
+      interval: 30s
+      rules:
+        - alert: PostgresDown
+          expr: pg_up == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "Postgres exporter cannot reach {{ $labels.pod }} for 2m"
+
+        - alert: PostgresReplicationLag
+          expr: pg_replication_lag_seconds > 60
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "Postgres replica {{ $labels.pod }} lag > 60s"
+
+        - alert: MySQLDown
+          expr: mysql_up == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "MySQL exporter cannot reach mysql-main for 2m"
+
+        - alert: MongoDBDown
+          expr: mongodb_up == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "MongoDB exporter cannot reach mongodb-main for 2m"
+
+        - alert: RedisDown
+          expr: redis_up == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "Redis exporter cannot reach redis-main for 2m"
+
+        - alert: ElasticsearchRed
+          expr: elasticsearch_cluster_health_status{color="red"} == 1
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "Elasticsearch cluster status RED for 2m"
+
+        - alert: KafkaBrokersDown
+          expr: kafka_brokers < 1
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "Kafka has no live brokers"
