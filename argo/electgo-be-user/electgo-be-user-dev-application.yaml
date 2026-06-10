@@ -34,6 +34,8 @@ spec:
           value: "false"
         - name: zitadelKeyFile.enabled
           value: "true"
+        - name: zitadelKeyFile.existingSecret
+          value: electgo-be-user-zitadel-key
   destination:
     name: development
     namespace: electgo-be-user
