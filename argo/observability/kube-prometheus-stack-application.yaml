@@ -46,6 +46,21 @@ spec:
             prometheus: true
             prometheusOperator: true
 
+        additionalPrometheusRulesMap:
+          electgo-certificates:
+            groups:
+              - name: electgo.certificates
+                interval: 1m
+                rules:
+                  - alert: CertificateExpiresSoon
+                    expr: (certmanager_certificate_expiration_timestamp_seconds - time()) < 14 * 24 * 60 * 60
+                    for: 30m
+                    labels:
+                      severity: critical
+                    annotations:
+                      summary: Certificate {{ $labels.exported_namespace }}/{{ $labels.name }} expires in less than 14 days
+                      description: Renew or inspect cert-manager for {{ $labels.exported_namespace }}/{{ $labels.name }} before TLS expiry.
+
         # Scheduler/controller-manager are EKS-managed; no scrape target on worker nodes.
         kubeControllerManager:
           enabled: false
@@ -226,6 +241,13 @@ spec:
             server:
               root_url: https://grafana.electgo.com
               serve_from_sub_path: false
+            smtp:
+              enabled: true
+              host: smtp.gmail.com:587
+              user: ptdigitalsolusigrup@gmail.com
+              from_address: ptdigitalsolusigrup@gmail.com
+              from_name: ElectGo Production Grafana
+              startTLS_policy: MandatoryStartTLS
             security:
               cookie_secure: true
               strict_transport_security: true
@@ -236,6 +258,33 @@ spec:
               auto_assign_org_role: Viewer
             auth.anonymous:
               enabled: false
+          smtp:
+            existingSecret: grafana-smtp-credentials
+            userKey: user
+            passwordKey: password
+          alerting:
+            contactpoints.yaml:
+              apiVersion: 1
+              contactPoints:
+                - orgId: 1
+                  name: electgo-production-email
+                  receivers:
+                    - uid: electgo-production-email
+                      type: email
+                      settings:
+                        addresses: yohannes@limkimhai.com.sg;yusoof.sh@dsg.id;chesa.nur@dsg.id
+                        singleEmail: false
+            policies.yaml:
+              apiVersion: 1
+              policies:
+                - orgId: 1
+                  receiver: electgo-production-email
+                  group_by:
+                    - grafana_folder
+                    - alertname
+                  group_wait: 30s
+                  group_interval: 5m
+                  repeat_interval: 12h
           additionalDataSources:
             - name: Loki
               type: loki

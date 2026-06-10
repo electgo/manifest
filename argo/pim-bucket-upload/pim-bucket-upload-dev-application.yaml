@@ -16,7 +16,7 @@ spec:
     path: helm/pim-bucket-upload
     helm:
       valueFiles:
-        - values-development.yaml
+        - values-dev.yaml
       parameters:
         - name: persistence.writable.storageClass
           value: "nfs-client-agent-1"

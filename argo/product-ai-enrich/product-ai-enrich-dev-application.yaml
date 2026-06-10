@@ -11,7 +11,7 @@ spec:
     path: helm/product-ai-enrich
     helm:
       valueFiles:
-        - values-development.yaml
+        - values-dev.yaml
       parameters:
         - name: secret.create
           value: "false"

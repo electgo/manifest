@@ -13,7 +13,7 @@ stringData:
   MATOMO_DATABASE_HOST: "mysql.database.svc.cluster.local"
   MATOMO_DATABASE_ADAPTER: "mysql"
   MATOMO_DATABASE_TABLES_PREFIX: ""
-  MATOMO_DATABASE_USERNAME: "matomo_user"
+  MATOMO_DATABASE_USERNAME: "matomo_app"
   MATOMO_DATABASE_PASSWORD: "ElectGo2026Mysql"
   MATOMO_DATABASE_DBNAME: "matomo"
   MATOMO_GENERAL_SALT: "a2350dc98fbe7248810e08252c4d34a427e9f98679687ead812f7afa2f8d1c72"
@@ -112,7 +112,7 @@ spec:
         fsGroup: 33
       initContainers:
         - name: warmup
-          image: matomo:5.10.0-apache
+          image: matomo:5.11.0-apache
           command:
             - sh
             - -c
@@ -153,7 +153,7 @@ spec:
               mountPath: /var/www/html/config
       containers:
         - name: matomo
-          image: matomo:5.10.0-apache
+          image: matomo:5.11.0-apache
           ports:
             - name: http
               containerPort: 80

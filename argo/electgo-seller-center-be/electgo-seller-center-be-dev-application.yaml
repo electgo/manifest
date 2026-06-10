@@ -11,7 +11,7 @@ spec:
     path: helm/electgo-seller-center-be
     helm:
       valueFiles:
-        - values-development.yaml
+        - values-dev.yaml
       parameters:
         - name: namespace.name
           value: electgo-seller-center

@@ -12,7 +12,7 @@ spec:
     helm:
       releaseName: electgo-be-user
       valueFiles:
-        - values-development.yaml
+        - values-dev.yaml
       parameters:
         - name: replicaCount
           value: "1"

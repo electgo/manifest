@@ -16,7 +16,7 @@ spec:
     path: deployments/helm
     helm:
       valueFiles:
-        - values-development.yaml
+        - values-dev.yaml
       parameters:
         - name: secret.manage
           value: "false"

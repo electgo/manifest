@@ -19,7 +19,7 @@ spec:
     path: deployments/helm
     helm:
       valueFiles:
-        - values-production.yaml
+        - values-prod.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: pim-sku-finder

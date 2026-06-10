@@ -21,7 +21,7 @@ spec:
       releaseName: pim-master
       valueFiles:
         - values.yaml
-        - values-production.yaml
+        - values-prod.yaml
       parameters:
         - name: secret.create
           value: "false"

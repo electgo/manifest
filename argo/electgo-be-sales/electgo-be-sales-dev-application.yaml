@@ -11,7 +11,7 @@ spec:
     path: helm/electgo-be-sales
     helm:
       valueFiles:
-        - values-development.yaml
+        - values-dev.yaml
       parameters:
         - name: replicaCount
           value: "1"

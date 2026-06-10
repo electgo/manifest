@@ -24,16 +24,16 @@ spec:
     helm:
       releaseName: pim-partners
       valueFiles:
-        - values-development.yaml
+        - values-dev.yaml
       parameters:
         - name: ingress.host
           value: "partners.dev.electgo.com"
         - name: ingress.tls.enabled
           value: "true"
         - name: ingress.tls.secretName
-          value: "dev-services-tls"
+          value: "partners-dev-tls"
         - name: ingress.className
-          value: "traefik"
+          value: "haproxy"
         - name: resources.requests.cpu
           value: "50m"
         - name: nodeSelector.workload

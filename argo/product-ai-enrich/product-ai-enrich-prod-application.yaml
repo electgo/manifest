@@ -26,10 +26,12 @@ spec:
     helm:
       releaseName: product-ai-enrich
       valueFiles:
-        - values-production.yaml
+        - values-prod.yaml
       parameters:
         - name: secret.create
           value: "false"
+        - name: replicaCount
+          value: "1"
   destination:
     name: production
     namespace: product-ai-enrich

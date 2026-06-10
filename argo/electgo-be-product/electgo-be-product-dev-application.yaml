@@ -13,7 +13,7 @@ spec:
       releaseName: electgo-be-product
       valueFiles:
         - values.yaml
-        - values-development.yaml
+        - values-dev.yaml
       parameters:
         - name: replicaCount
           value: "1"
