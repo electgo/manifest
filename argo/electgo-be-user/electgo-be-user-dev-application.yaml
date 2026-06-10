@@ -33,7 +33,7 @@ spec:
         - name: imageCredentials.create
           value: "false"
         - name: zitadelKeyFile.enabled
-          value: "false"
+          value: "true"
   destination:
     name: development
     namespace: electgo-be-user
