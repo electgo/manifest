@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: pim-bucket-upload-dev
+  name: pim-sku-finder-dev
   namespace: argocd
 spec:
   project: product
@@ -11,36 +11,36 @@ spec:
       jsonPointers:
         - /spec/template/spec/nodeSelector
   source:
-    repoURL: https://github.com/electgo/pim-bucket-upload.git
+    repoURL: https://github.com/electgo/pim-sku-finder.git
     targetRevision: develop
-    path: helm/pim-bucket-upload
+    path: deployments/helm
     helm:
       valueFiles:
         - values-development.yaml
       parameters:
-        - name: persistence.writable.storageClass
-          value: "nfs-client-agent-1"
-        - name: namespace.name
-          value: "pim-bucket-upload"
-        - name: imageCredentials.create
+        - name: secret.manage
           value: "false"
-        - name: secret.create
-          value: "false"
-        - name: migration.enabled
-          value: "false"
+        - name: resources.requests.memory
+          value: "64Mi"
+        - name: resources.requests.cpu
+          value: "25m"
+        - name: ingress.className
+          value: "haproxy"
+        - name: ingress.id.tlsSecretName
+          value: "sku-finder-dev-tls"
+        - name: ingress.sg.tlsSecretName
+          value: "sku-finder-dev-tls"
+        - name: config.dbNameSg
+          value: "pim_master"
+        - name: config.dbNameId
+          value: "pim_indo"
         - name: nodeSelector.node-role
           value: "worker"
         - name: nodeSelector.workload
           value: "apps"
-        - name: ingress.className
-          value: "haproxy"
-        - name: ingress.tls.enabled
-          value: "true"
-        - name: ingress.tls.secretName
-          value: "bucketupload-dev-tls"
   destination:
     name: development
-    namespace: pim-bucket-upload
+    namespace: pim-sku-finder
   syncPolicy:
     automated:
       prune: true
