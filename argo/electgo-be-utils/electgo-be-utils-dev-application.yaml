@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: electgo-be-utils-dev
+  namespace: argocd
+spec:
+  project: marketplace
+  source:
+    repoURL: https://github.com/electgo/electgo-be-utils
+    targetRevision: develop
+    path: helm/electgo-be-utils
+    helm:
+      valueFiles:
+        - values-development.yaml
+      parameters:
+        - name: replicaCount
+          value: "1"
+        - name: env.config.REDIS_HOST
+          value: redis.database.svc.cluster.local
+        - name: env.config.CORS_ORIGIN
+          value: http://electgo-be-utils.electgo-be-utils.svc.cluster.local:3202
+        - name: secret.create
+          value: "false"
+        - name: imageCredentials.create
+          value: "false"
+  destination:
+    server: https://10.20.17.100:6443
+    namespace: electgo-be-utils
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: false
+      selfHeal: true

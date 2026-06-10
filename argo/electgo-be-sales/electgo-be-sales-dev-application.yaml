@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: electgo-be-sales-dev
+  namespace: argocd
+spec:
+  project: marketplace
+  source:
+    repoURL: https://github.com/electgo/electgo-be-sales
+    targetRevision: develop
+    path: helm/electgo-be-sales
+    helm:
+      valueFiles:
+        - values-development.yaml
+      parameters:
+        - name: replicaCount
+          value: "1"
+        - name: env.config.KAFKA_HOST
+          value: kafka.database.svc.cluster.local
+        - name: env.config.POINT_SERVICE_URL
+          value: http://electgo-be-point-reward.electgo-be-point-reward.svc.cluster.local:3205
+        - name: env.config.PRODUCT_SERVICE_URL
+          value: http://electgo-be-product.electgo-be-product.svc.cluster.local:3200
+        - name: env.config.SELLER_SERVICE_URL
+          value: http://electgo-seller-center-be-dev.electgo-seller-center.svc.cluster.local:3031
+        - name: env.config.USER_SERVICE_URL
+          value: http://electgo-be-user.marketplace.svc.cluster.local:3030
+        - name: env.config.UTIL_SERVICE_URL
+          value: http://electgo-be-utils.electgo-be-utils.svc.cluster.local:3202
+        - name: secret.create
+          value: "false"
+        - name: imageCredentials.create
+          value: "false"
+  destination:
+    server: https://10.20.17.100:6443
+    namespace: electgo-be-sales
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: false
+      selfHeal: true

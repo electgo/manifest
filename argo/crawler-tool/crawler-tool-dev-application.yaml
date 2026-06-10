@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: crawler-tool-dev
+  namespace: argocd
+spec:
+  project: marketplace
+  source:
+    repoURL: https://github.com/electgo/crawler-tool
+    targetRevision: develop
+    path: helm/crawler-tool
+    helm:
+      valueFiles:
+        - values-development.yaml
+      parameters:
+        - name: env.config.REDIS_BATCH_SIZE
+          value: "100"
+        - name: env.config.REDIS_TTL_SECONDS
+          value: "3600"
+        - name: secret.create
+          value: "false"
+        - name: imageCredentials.create
+          value: "false"
+  destination:
+    server: https://10.20.17.100:6443
+    namespace: crawler-tool
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: false
+      selfHeal: true
