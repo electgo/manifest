@@ -13,11 +13,18 @@ spec:
       jsonPointers:
         - /data
         - /stringData
+    - group: apps
+      kind: Deployment
+      name: product-ai-enrich
+      namespace: product-ai-enrich
+      jsonPointers:
+        - /spec/template/metadata/annotations/checksum~1secret
   source:
     repoURL: https://github.com/electgo/product-ai-enrich
     targetRevision: main
     path: helm/product-ai-enrich
     helm:
+      releaseName: product-ai-enrich
       valueFiles:
         - values-production.yaml
       parameters:

@@ -18,6 +18,7 @@ spec:
     targetRevision: main
     path: helm/pim-partners-bundling
     helm:
+      releaseName: pim-partners
       valueFiles:
         - values.yaml
         - values-production.yaml
