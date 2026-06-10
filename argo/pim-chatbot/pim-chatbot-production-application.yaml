@@ -31,6 +31,8 @@ spec:
       parameters:
         - name: secret.create
           value: "false"
+        - name: migration.enabled
+          value: "false"
   destination:
     name: production
     namespace: pim-chatbot
