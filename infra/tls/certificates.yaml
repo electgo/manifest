@@ -206,3 +206,19 @@ spec:
   privateKey:
     algorithm: ECDSA
     size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: be-point-reward-dev-tls
+  namespace: electgo-be-point-reward
+spec:
+  secretName: be-point-reward-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "point-reward.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
