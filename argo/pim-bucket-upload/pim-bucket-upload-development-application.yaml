@@ -15,7 +15,7 @@ spec:
         - /stringData
   source:
     repoURL: https://github.com/electgo/pim-bucket-upload.git
-    targetRevision: development
+    targetRevision: develop
     path: helm/pim-bucket-upload
     helm:
       valueFiles:
