@@ -45,6 +45,23 @@ spec:
                   isDefault: true
                   jsonData:
                     timeInterval: "15s"
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+              traefik.ingress.kubernetes.io/router.tls: "true"
+            hosts:
+              - grafana.electgo.com
+            tls:
+              - secretName: grafana-electgo-com-tls
+                hosts:
+                  - grafana.electgo.com
+          grafana.ini:
+            server:
+              root_url: https://grafana.electgo.com
+              serve_from_sub_path: false
         alertmanager:
           alertmanagerSpec:
             nodeSelector:
@@ -56,6 +73,19 @@ spec:
                   resources:
                     requests:
                       storage: 5Gi
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+              traefik.ingress.kubernetes.io/router.tls: "true"
+            hosts:
+              - alertmanager.electgo.com
+            tls:
+              - secretName: alertmanager-electgo-com-tls
+                hosts:
+                  - alertmanager.electgo.com
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

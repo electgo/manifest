@@ -13,7 +13,7 @@ stringData:
   MATOMO_DATABASE_HOST: "mysql.database.svc.cluster.local"
   MATOMO_DATABASE_ADAPTER: "mysql"
   MATOMO_DATABASE_TABLES_PREFIX: "matomo_"
-  MATOMO_DATABASE_USERNAME: "matomo"
+  MATOMO_DATABASE_USERNAME: "matomo_user"
   MATOMO_DATABASE_PASSWORD: "ElectGo2026Mysql"
   MATOMO_DATABASE_DBNAME: "matomo"
 ---
@@ -36,9 +36,36 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: 9000
+      targetPort: 80
   selector:
     app: matomo
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: matomo
+  namespace: matomo
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: track.electgo.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: matomo
+                port:
+                  name: http
+  tls:
+    - secretName: track-electgo-com-tls
+      hosts:
+        - track.electgo.com
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -63,17 +90,17 @@ spec:
         fsGroup: 33
       initContainers:
         - name: warmup
-          image: matomo:5-fpm-alpine
+          image: matomo:5.10.0-apache
           command: ["sh", "-c", "until php -r \"new PDO('mysql:host=' . getenv('MATOMO_DATABASE_HOST') . ';dbname=' . getenv('MATOMO_DATABASE_DBNAME'), getenv('MATOMO_DATABASE_USERNAME'), getenv('MATOMO_DATABASE_PASSWORD'));\" 2>/dev/null; do echo waiting for db; sleep 2; done"]
           envFrom:
             - secretRef:
                 name: matomo-db
       containers:
         - name: matomo
-          image: matomo:5-fpm-alpine
+          image: matomo:5.10.0-apache
           ports:
             - name: http
-              containerPort: 9000
+              containerPort: 80
           envFrom:
             - secretRef:
                 name: matomo-db
@@ -91,13 +118,13 @@ spec:
               mountPath: /var/www/html/config
           readinessProbe:
             tcpSocket:
-              port: 9000
+              port: 80
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
           livenessProbe:
             tcpSocket:
-              port: 9000
+              port: 80
             initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 5
