@@ -1,0 +1,85 @@
+# Self-healing taint guard for the dev cluster.
+#
+# Why: dev cluster is mixed-platform (arm64 workers + amd64 control/search).
+# All CI images are now arm64-only, so app pods must never land on the amd64
+# nodes. control (amd64) is tainted node-role.kubernetes.io/control-plane:NoSchedule
+# and search (amd64) is tainted dedicated:NoSchedule, so general (arm64) app
+# pods only schedule on the arm64 workers.
+#
+# The control-plane taint is applied at runtime (not baked into the k3s node
+# config, which is not reachable via the cluster API on these Proxmox nodes).
+# A node that re-registers would come up untainted. This CronJob re-asserts the
+# taint every few minutes so the guarantee survives node re-registration.
+#
+# This is the cluster-layer substitute for `node-taint` in the k3s node config.
+# If/when an admin has host access to electgo-dev-control, prefer adding
+#   node-taint:
+#     - "node-role.kubernetes.io/control-plane=:NoSchedule"
+# to /etc/rancher/k3s/config.yaml (then this guard becomes redundant).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-taint-guard
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-taint-guard
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: node-taint-guard
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-taint-guard
+subjects:
+  - kind: ServiceAccount
+    name: node-taint-guard
+    namespace: kube-system
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: node-taint-guard
+  namespace: kube-system
+spec:
+  schedule: "*/3 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 120
+      template:
+        spec:
+          serviceAccountName: node-taint-guard
+          restartPolicy: OnFailure
+          nodeSelector:
+            kubernetes.io/arch: arm64
+          containers:
+            - name: kubectl
+              # rancher/kubectl is a minimal image with no /bin/sh; invoke
+              # the kubectl binary directly (its entrypoint) with args.
+              image: rancher/kubectl:v1.30.2
+              command: ["kubectl"]
+              args:
+                - taint
+                - node
+                - electgo-dev-control
+                - node-role.kubernetes.io/control-plane=:NoSchedule
+                - --overwrite
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
