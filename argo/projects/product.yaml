@@ -14,6 +14,8 @@ spec:
       namespace: pim-*
     - name: production
       namespace: product-ai-enrich
+    - name: production
+      namespace: n8n
     - name: development
       namespace: pim-*
     - name: development

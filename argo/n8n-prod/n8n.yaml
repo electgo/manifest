@@ -29,11 +29,10 @@
 #            Ingress rule serves both ports.
 # IngressClassName: `haproxy`
 # StorageClass: `efs-app-1000` (EFS, RWX — immutable from original creation)
-# PostgreSQL:  shared `postgres-main-pg-db` (Percona PG 18) in `database` ns.
-#              user/db `n8n` defined in k8s/production/databases/postgres-values.yaml `users:` block;
-#              operator writes connection secret `postgres-main-pg-db-pguser-n8n`.
-#              Connect to PRIMARY service (not pgbouncer) — n8n/TypeORM uses prepared statements
-#              that break under transaction-mode pooling.
+# PostgreSQL:  RDS `electgo-prod-postgresql` (PostgreSQL 18), db `n8n`, user `sharedops`
+#              (2026-06-12 RDS cutover; in-cluster Percona PG decommissioned).
+#              Connection values live in out-of-band secret `n8n-db` (ns n8n,
+#              keys host/port/user/password/dbname), NOT in git.
 #
 # Topology: single-node (main pod handles webhook/UI/execution). No Redis, no workers.
 #           Binary data uses database mode. PVC for config, logs, and community nodes.
@@ -41,24 +40,17 @@
 #           Pinned to node 10.20.77.70 (most memory headroom).
 #
 # Pre-deploy:
-#   1. Ensure n8n user exists in Percona PG. From repo root:
-#        helm upgrade postgres-main percona/pg-db -n database --version 2.9.0 \
-#          -f k8s/production/databases/postgres-values.yaml
-#      (Or directly: kubectl -n database patch pg postgres-main-pg-db --type merge \
-#         -p '{"spec":{"users":[{"name":"n8n","databases":["n8n"],"grantPublicSchemaAccess":true}]}}')
-#      Verify: kubectl -n database get secret postgres-main-pg-db-pguser-n8n
-#   2. Mirror the operator-generated secret into the n8n namespace (k8s secrets are ns-scoped):
-#        kubectl -n database get secret postgres-main-pg-db-pguser-n8n -o json \
-#          | python3 -c 'import json,sys; s=json.load(sys.stdin); s["metadata"]={"name":s["metadata"]["name"],"namespace":"n8n"}; print(json.dumps(s))' \
-#          | kubectl apply -f -
-#      Re-run this if the operator ever rotates the n8n user password.
+#   1. Ensure secret `n8n-db` exists in ns n8n with keys host/port/user/password/dbname
+#      pointing at RDS electgo-prod-postgresql (db n8n, user sharedops; password in
+#      Secrets Manager / RDS sharedops cred). Recreate via kubectl create secret generic.
+#   2. (removed: Percona PG operator user provisioning, obsolete since RDS cutover)
 #   3. Encryption key in `n8n-secrets` MUST be persisted forever — losing it makes existing
 #      stored credentials unrecoverable. Rotate only via documented n8n key-rotation flow.
 #   4. Cloudflare CNAME auto8.electgo.com -> electgo-prod-alb-855172431.ap-southeast-3.elb.amazonaws.com
 #      (proxied). Already in place; matches the matomo/openproject pattern.
 #
-# Deploy:
-#   kubectl apply -f k8s/production/services/n8n.yaml
+# Deploy: GitOps via ArgoCD Application `n8n-prod` (argo/n8n-prod-application.yaml),
+#   automated sync + selfHeal, no prune. Push to main = deploy.
 #
 # Post-deploy:
 #   kubectl -n n8n rollout status deploy/n8n --timeout=10m
@@ -73,18 +65,10 @@ kind: Namespace
 metadata:
   name: n8n
 ---
-# Encryption key — used by n8n to encrypt credentials at rest. KEEP THIS VALUE STABLE.
-# Generated with: openssl rand -hex 32
-apiVersion: v1
-kind: Secret
-metadata:
-  name: n8n-secrets
-  namespace: n8n
-type: Opaque
-stringData:
-  # Source: Lightsail N8NServer_v2 (3.1.74.210) /home/ubuntu/.n8n/config — must match
-  # to keep migrated credentials decryptable. Originally generated 2024-Q3 by old n8n.
-  N8N_ENCRYPTION_KEY: "29DNFlMKocbIsnuRMXpngkiQ8UvsTHLa"
+# Secret `n8n-secrets` (N8N_ENCRYPTION_KEY, N8N_LICENSE_ACTIVATION_KEY,
+# N8N_USER_MANAGEMENT_JWT_SECRET) is managed OUT-OF-BAND, not in git.
+# The encryption key originates from Lightsail N8NServer_v2 /home/ubuntu/.n8n/config
+# (2024-Q3) and MUST stay stable or stored credentials become undecryptable.
 ---
 # /home/node/.n8n — config, event logs, community nodes, and old filesystem binary data.
 # EFS storageClass retained; PVC is RWX (immutable from original creation, safe for single-node).
@@ -163,7 +147,7 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: ip-10-20-77-70.ap-southeast-3.compute.internal
       initContainers:
-        # Wait for Percona PG operator to provision the n8n user secret + accept connections.
+        # Wait for RDS PostgreSQL to accept connections.
         - name: wait-postgres
           image: postgres:18-alpine
           command:
@@ -180,27 +164,27 @@ spec:
             - name: DB_POSTGRESDB_HOST
               valueFrom:
                 secretKeyRef:
-                  name: postgres-main-pg-db-pguser-n8n
+                  name: n8n-db
                   key: host
             - name: DB_POSTGRESDB_PORT
               valueFrom:
                 secretKeyRef:
-                  name: postgres-main-pg-db-pguser-n8n
+                  name: n8n-db
                   key: port
             - name: DB_POSTGRESDB_USER
               valueFrom:
                 secretKeyRef:
-                  name: postgres-main-pg-db-pguser-n8n
+                  name: n8n-db
                   key: user
             - name: DB_POSTGRESDB_DATABASE
               valueFrom:
                 secretKeyRef:
-                  name: postgres-main-pg-db-pguser-n8n
+                  name: n8n-db
                   key: dbname
         # HOTFIX: Disable MCP queued execution strategy to fix tool execution timeout
         # Ref: https://github.com/n8n-io/n8n/issues/26394
         - name: mcp-workaround
-          image: docker.n8n.io/n8nio/n8n:2.22.5
+          image: docker.n8n.io/n8nio/n8n:2.25.7
           securityContext:
             runAsUser: 0
             allowPrivilegeEscalation: false
@@ -225,7 +209,7 @@ spec:
               mountPath: /mnt/n8n-dist
       containers:
         - name: n8n
-          image: docker.n8n.io/n8nio/n8n:2.22.5
+          image: docker.n8n.io/n8nio/n8n:2.25.7
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -252,37 +236,38 @@ spec:
             - name: TZ
               value: "Asia/Jakarta"
 
-            # --- Database (Percona PG primary svc; not pgbouncer) ---
+            # --- Database (RDS electgo-prod-postgresql, secret n8n-db out-of-band) ---
             - name: DB_TYPE
               value: "postgresdb"
             - name: DB_POSTGRESDB_HOST
-              # Override operator-provided primary host with stable in-cluster DNS.
-              # Operator secret `host` points at *-primary already, but pin explicitly
-              # so misconfigured pgbouncer routing can't break us.
-              value: "postgres-main-pg-db-primary.database.svc.cluster.local"
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-db
+                  key: host
             - name: DB_POSTGRESDB_PORT
-              value: "5432"
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-db
+                  key: port
             - name: DB_POSTGRESDB_DATABASE
               valueFrom:
                 secretKeyRef:
-                  name: postgres-main-pg-db-pguser-n8n
+                  name: n8n-db
                   key: dbname
             - name: DB_POSTGRESDB_USER
               valueFrom:
                 secretKeyRef:
-                  name: postgres-main-pg-db-pguser-n8n
+                  name: n8n-db
                   key: user
             - name: DB_POSTGRESDB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-main-pg-db-pguser-n8n
+                  name: n8n-db
                   key: password
             - name: DB_POSTGRESDB_SCHEMA
               value: "public"
-            # Percona PG enforces hostssl in pg_hba — n8n must connect with TLS.
-            # CA is operator-managed; reject_unauthorized=false because we don't mount the
-            # cluster CA. Tighten by mirroring `postgres-main-pg-db-cluster-ca-cert` and
-            # mounting `ca.crt` into DB_POSTGRESDB_SSL_CA when hardening.
+            # reject_unauthorized=false: RDS CA bundle not mounted. Tighten by mounting
+            # the ap-southeast-3 RDS CA into DB_POSTGRESDB_SSL_CA when hardening.
             - name: DB_POSTGRESDB_SSL_ENABLED
               value: "true"
             - name: DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED
@@ -328,6 +313,12 @@ spec:
               value: "3600" # 1h max per execution
             - name: EXECUTIONS_TIMEOUT_MAX
               value: "7200" # hard cap 2h
+            - name: EXECUTIONS_DATA_PRUNE_MAX_COUNT
+              value: "10000"
+            - name: N8N_METRICS
+              value: "true"
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=6144"
           volumeMounts:
             - name: data
               mountPath: /home/node/.n8n
