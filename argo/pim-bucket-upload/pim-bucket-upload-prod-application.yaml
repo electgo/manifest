@@ -21,9 +21,6 @@ spec:
       releaseName: pim-bucket-upload
       valueFiles:
         - values-prod.yaml
-      parameters:
-        - name: secret.create
-          value: "false"
   destination:
     name: production
     namespace: pim-bucket-upload
