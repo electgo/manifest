@@ -9,7 +9,7 @@ spec:
     name: development
     namespace: n8n
   source:
-    path: argo/n8n
+    path: argo/n8n-dev
     repoURL: https://github.com/electgo/manifest.git
     targetRevision: main
     directory:
