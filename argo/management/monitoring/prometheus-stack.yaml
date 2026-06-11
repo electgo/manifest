@@ -168,35 +168,8 @@ spec:
               from_address: ptdigitalsolusigrup@gmail.com
               from_name: ElectGo Grafana
               startTLS_policy: MandatoryStartTLS
-        kube-state-metrics:
-          rbac:
-            extraRules:
-              - apiGroups: ["management.cattle.io"]
-                resources: ["clusters"]
-                verbs: ["list", "watch"]
-          customResourceState:
-            enabled: true
-            config:
-              kind: CustomResourceStateMetrics
-              spec:
-                resources:
-                  - groupVersionKind:
-                      group: management.cattle.io
-                      version: v3
-                      kind: Cluster
-                    labelsFromPath:
-                      cluster_id: [metadata, name]
-                      cluster_name: [spec, displayName]
-                    metrics:
-                      - name: rancher_cluster_condition
-                        help: Rancher cluster status conditions (1=True, 0=False)
-                        each:
-                          type: Gauge
-                          gauge:
-                            path: [status, conditions]
-                            labelsFromPath:
-                              condition: [type]
-                            valueFrom: [status]
+        kubeStateMetrics:
+          enabled: false
         additionalPrometheusRulesMap:
           rancher-downstream:
             groups:
