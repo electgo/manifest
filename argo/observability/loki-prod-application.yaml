@@ -1,16 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: loki
+  name: loki-prod
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
+  destination:
+    name: production
+    namespace: monitoring
   project: observability
   source:
-    repoURL: https://grafana.github.io/helm-charts
     chart: loki
-    targetRevision: 6.21.0
     helm:
       releaseName: loki
       values: |
@@ -155,20 +154,6 @@ spec:
           create: true
           name: loki
           annotations:
-            eks.amazonaws.com/role-arn: arn:aws:iam::043713809039:role/ElectGoProdLokiS3Role
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: monitoring
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 30s
-        factor: 2
-        maxDuration: 5m
+            eks.amazonaws.com/role-arn: arn:aws:iam::043713809039:role/electgo-prod-loki-s3
+    repoURL: https://grafana.github.io/helm-charts
+    targetRevision: 6.21.0

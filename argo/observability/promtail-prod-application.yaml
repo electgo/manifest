@@ -1,16 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: promtail
+  name: promtail-prod
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
+  destination:
+    name: production
+    namespace: monitoring
   project: observability
   source:
-    repoURL: https://grafana.github.io/helm-charts
     chart: promtail
-    targetRevision: 6.16.6
     helm:
       releaseName: promtail
       values: |
@@ -44,20 +43,5 @@ spec:
         tolerations:
           - operator: Exists
         priorityClassName: system-node-critical
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: monitoring
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
-      - SkipDryRunOnMissingResource=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 30s
-        factor: 2
-        maxDuration: 5m
+    repoURL: https://grafana.github.io/helm-charts
+    targetRevision: 6.16.6

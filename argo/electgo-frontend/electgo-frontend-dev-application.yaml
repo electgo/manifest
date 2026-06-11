@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: electgo-frontend-dev
+  namespace: argocd
+spec:
+  destination:
+    name: development
+    namespace: electgo-frontend
+  project: marketplace
+  source:
+    helm:
+      parameters:
+      - name: replicaCount
+        value: '1'
+      - name: ingress.host
+        value: fe-dev.electgo.com
+      - name: image.tag
+        value: development
+      - name: nodeSelector.workload
+        value: apps
+      - name: secret.create
+        value: 'false'
+      - name: imageCredentials.create
+        value: 'false'
+      releaseName: electgo-frontend
+      valueFiles:
+      - values.yaml
+      - values-dev.yaml
+    path: helm/electgo-frontend
+    repoURL: https://github.com/electgo/electgo-frontend
+    targetRevision: develop
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+    - CreateNamespace=true

@@ -1,17 +1,27 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: kube-prometheus-stack
+  name: kube-prometheus-stack-prod
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
+  destination:
+    name: production
+    namespace: monitoring
   project: observability
   source:
-    repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
-    targetRevision: 65.5.0
     helm:
+      parameters:
+      - name: prometheus.prometheusSpec.resources.requests.cpu
+        value: 300m
+      - name: prometheus.prometheusSpec.resources.requests.memory
+        value: 2Gi
+      - name: grafana.resources.requests.cpu
+        value: 25m
+      - name: grafana.resources.requests.memory
+        value: 200Mi
+      - name: grafana.resources.limits.memory
+        value: 400Mi
       releaseName: kps
       values: |
         crds:
@@ -45,22 +55,6 @@ spec:
             nodeExporterRecording: true
             prometheus: true
             prometheusOperator: true
-
-        additionalPrometheusRulesMap:
-          electgo-certificates:
-            groups:
-              - name: electgo.certificates
-                interval: 1m
-                rules:
-                  - alert: CertificateExpiresSoon
-                    expr: (certmanager_certificate_expiration_timestamp_seconds - time()) < 14 * 24 * 60 * 60
-                    for: 30m
-                    labels:
-                      severity: critical
-                    annotations:
-                      summary: Certificate {{ $labels.exported_namespace }}/{{ $labels.name }} expires in less than 14 days
-                      description: Renew or inspect cert-manager for {{ $labels.exported_namespace }}/{{ $labels.name }} before TLS expiry.
-
         # Scheduler/controller-manager are EKS-managed; no scrape target on worker nodes.
         kubeControllerManager:
           enabled: false
@@ -70,7 +64,6 @@ spec:
           enabled: false
         kubeEtcd:
           enabled: false
-
         alertmanager:
           # CloudWatch alarms remain the production fanout path; Alertmanager
           # is enabled here only as a UI for inspecting in-cluster Prometheus
@@ -108,19 +101,21 @@ spec:
                 target_matchers: ["severity =~ warning|info"]
                 equal: ["alertname", "namespace"]
           ingress:
-            enabled: true
-            ingressClassName: traefik
+            enabled: false
+            ingressClassName: haproxy
             annotations:
               cert-manager.io/cluster-issuer: letsencrypt-prod
-              traefik.ingress.kubernetes.io/router.entrypoints: websecure
-              traefik.ingress.kubernetes.io/router.tls: "true"
+              haproxy.org/forwarded-for: "true"
+              haproxy.org/forwarded-proto: "true"
+              haproxy.org/ssl-redirect: "false"
+              haproxy.org/timeout-client: 300s
+              haproxy.org/timeout-server: 300s
             hosts:
               - alertmanager.electgo.com
             tls:
               - secretName: alertmanager-electgo-com-tls
                 hosts:
                   - alertmanager.electgo.com
-
         prometheus:
           prometheusSpec:
             retention: 15d
@@ -133,8 +128,8 @@ spec:
             probeSelectorNilUsesHelmValues: false
             resources:
               requests:
-                cpu: 300m
-                memory: 2Gi
+                cpu: 100m
+                memory: 1Gi
               limits:
                 memory: 3Gi
             storageSpec:
@@ -170,7 +165,6 @@ spec:
                   - source_labels: [__meta_kubernetes_pod_name]
                     action: replace
                     target_label: pod
-
         prometheus-node-exporter:
           hostRootFsMount:
             enabled: true
@@ -180,7 +174,6 @@ spec:
               memory: 32Mi
             limits:
               memory: 64Mi
-
         kube-state-metrics:
           metricLabelsAllowlist:
             - "pods=[*]"
@@ -192,7 +185,6 @@ spec:
               memory: 64Mi
             limits:
               memory: 128Mi
-
         grafana:
           enabled: true
           # Stable admin credentials sourced from a hand-managed secret so
@@ -214,17 +206,20 @@ spec:
             size: 10Gi
           resources:
             requests:
-              cpu: 25m
-              memory: 200Mi
+              cpu: 100m
+              memory: 256Mi
             limits:
-              memory: 400Mi
+              memory: 512Mi
           ingress:
-            enabled: true
-            ingressClassName: traefik
+            enabled: false
+            ingressClassName: haproxy
             annotations:
               cert-manager.io/cluster-issuer: letsencrypt-prod
-              traefik.ingress.kubernetes.io/router.entrypoints: websecure
-              traefik.ingress.kubernetes.io/router.tls: "true"
+              haproxy.org/forwarded-for: "true"
+              haproxy.org/forwarded-proto: "true"
+              haproxy.org/ssl-redirect: "false"
+              haproxy.org/timeout-client: 300s
+              haproxy.org/timeout-server: 300s
             hosts:
               - grafana.electgo.com
             tls:
@@ -235,13 +230,6 @@ spec:
             server:
               root_url: https://grafana.electgo.com
               serve_from_sub_path: false
-            smtp:
-              enabled: true
-              host: smtp.gmail.com:587
-              user: ptdigitalsolusigrup@gmail.com
-              from_address: ptdigitalsolusigrup@gmail.com
-              from_name: ElectGo Production Grafana
-              startTLS_policy: MandatoryStartTLS
             security:
               cookie_secure: true
               strict_transport_security: true
@@ -252,33 +240,13 @@ spec:
               auto_assign_org_role: Viewer
             auth.anonymous:
               enabled: false
-          smtp:
-            existingSecret: grafana-smtp-credentials
-            userKey: user
-            passwordKey: password
-          alerting:
-            contactpoints.yaml:
-              apiVersion: 1
-              contactPoints:
-                - orgId: 1
-                  name: electgo-production-email
-                  receivers:
-                    - uid: electgo-production-email
-                      type: email
-                      settings:
-                        addresses: yohannes@limkimhai.com.sg;yusoof.sh@dsg.id;chesa.nur@dsg.id
-                        singleEmail: false
-            policies.yaml:
-              apiVersion: 1
-              policies:
-                - orgId: 1
-                  receiver: electgo-production-email
-                  group_by:
-                    - grafana_folder
-                    - alertname
-                  group_wait: 30s
-                  group_interval: 5m
-                  repeat_interval: 12h
+            smtp:
+              enabled: true
+              host: smtp.gmail.com:587
+              user: ptdigitalsolusigrup@gmail.com
+              from_address: ptdigitalsolusigrup@gmail.com
+              from_name: ElectGo Production Grafana
+              startTLS_policy: MandatoryStartTLS
           additionalDataSources:
             - name: Loki
               type: loki
@@ -343,21 +311,50 @@ spec:
                 gnetId: 17119
                 revision: 1
                 datasource: CloudWatch
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: monitoring
+          smtp:
+            existingSecret: grafana-smtp-credentials
+            userKey: user
+            passwordKey: password
+          alerting:
+            contactpoints.yaml:
+              apiVersion: 1
+              contactPoints:
+                - orgId: 1
+                  name: electgo-production-email
+                  receivers:
+                    - uid: electgo-production-email
+                      type: email
+                      settings:
+                        addresses: yohannes@limkimhai.com.sg;yusoof.sh@dsg.id;chesa.nur@dsg.id
+                        singleEmail: false
+            policies.yaml:
+              apiVersion: 1
+              policies:
+                - orgId: 1
+                  receiver: electgo-production-email
+                  group_by:
+                    - grafana_folder
+                    - alertname
+                  group_wait: 30s
+                  group_interval: 5m
+                  repeat_interval: 12h
+        additionalPrometheusRulesMap:
+          electgo-certificates:
+            groups:
+              - name: electgo.certificates
+                interval: 1m
+                rules:
+                  - alert: CertificateExpiresSoon
+                    expr: (certmanager_certificate_expiration_timestamp_seconds - time()) < 14 * 24 * 60 * 60
+                    for: 30m
+                    labels:
+                      severity: critical
+                    annotations:
+                      summary: Certificate {{ $labels.exported_namespace }}/{{ $labels.name }} expires in less than 14 days
+                      description: Renew or inspect cert-manager for {{ $labels.exported_namespace }}/{{ $labels.name }} before TLS expiry.
+    repoURL: https://prometheus-community.github.io/helm-charts
+    targetRevision: 65.5.0
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
-      - ApplyOutOfSyncOnly=true
-      - SkipDryRunOnMissingResource=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 30s
-        factor: 2
-        maxDuration: 5m
+    - SkipHooks=true
+    - ServerSideApply=true
