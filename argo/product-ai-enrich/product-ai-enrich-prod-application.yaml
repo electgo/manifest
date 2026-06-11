@@ -28,8 +28,6 @@ spec:
       valueFiles:
         - values-prod.yaml
       parameters:
-        - name: secret.create
-          value: "false"
         - name: replicaCount
           value: "1"
   destination:

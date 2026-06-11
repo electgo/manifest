@@ -20,6 +20,9 @@ spec:
     helm:
       valueFiles:
         - values-prod.yaml
+      parameters:
+        - name: secret.manage
+          value: "true"
   destination:
     server: https://kubernetes.default.svc
     namespace: pim-sku-finder

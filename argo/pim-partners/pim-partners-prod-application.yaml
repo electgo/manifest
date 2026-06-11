@@ -22,9 +22,6 @@ spec:
       valueFiles:
         - values.yaml
         - values-prod.yaml
-      parameters:
-        - name: secret.create
-          value: "false"
   destination:
     name: production
     namespace: pim-partners-bundling

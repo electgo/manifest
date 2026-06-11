@@ -24,8 +24,6 @@ spec:
           value: "pim-bucket-upload"
         - name: imageCredentials.create
           value: "false"
-        - name: secret.create
-          value: "false"
         - name: migration.enabled
           value: "false"
         - name: nodeSelector.node-role

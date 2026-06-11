@@ -12,9 +12,6 @@ spec:
     helm:
       valueFiles:
         - values-dev.yaml
-      parameters:
-        - name: secret.create
-          value: "false"
   destination:
     name: development
     namespace: product-ai-enrich
