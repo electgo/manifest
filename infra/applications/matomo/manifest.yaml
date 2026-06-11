@@ -106,8 +106,6 @@ spec:
       labels:
         app: matomo
     spec:
-      nodeSelector:
-        workload: admin
       securityContext:
         fsGroup: 33
       initContainers:
