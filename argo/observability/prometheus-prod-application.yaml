@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: kube-prometheus-stack-prod
+  name: prometheus-prod
   namespace: argocd
 spec:
   destination:
@@ -186,7 +186,11 @@ spec:
             limits:
               memory: 128Mi
         grafana:
-          enabled: true
+          # Decommissioned 2026-06-12: dashboards, datasources, SMTP and
+          # alerting config were centralized to the management-cluster
+          # Grafana (Argo app prometheus-mgmt, https://grafana.electgo.com).
+          # Dashboard JSON archived in k8s/management/grafana-dashboards/.
+          enabled: false
           # Stable admin credentials sourced from a hand-managed secret so
           # the chart stops rotating the password on every reconcile (which
           # diverges from the password actually baked into Grafana's DB on
