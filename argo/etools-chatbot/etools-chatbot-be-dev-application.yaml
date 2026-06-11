@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: etools-chatbot-be-dev
+  namespace: argocd
+spec:
+  project: chatbot
+  source:
+    repoURL: https://github.com/electgo/etools-chatbot-be.git
+    targetRevision: develop
+    path: helm/etools-chatbot-be
+    helm:
+      releaseName: etools-chatbot-be
+      valueFiles:
+        - values-dev.yaml
+  destination:
+    name: development
+    namespace: etools-chatbot-be
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  # Runtime secrets (DB/JWT/APP/REDIS) live in the pre-created Secret
+  # etools-chatbot-be-secret; not in git, not Argo-managed.
+  # Image tag bumped by CI (bump-image-tag job) into values-dev.yaml.
