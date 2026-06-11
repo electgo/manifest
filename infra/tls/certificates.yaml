@@ -275,7 +275,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: seller-dev-tls
-  namespace: electgo-seller-center-fe
+  namespace: electgo-seller-center
 spec:
   secretName: seller-dev-tls
   issuerRef:
