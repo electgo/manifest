@@ -8,7 +8,10 @@ metadata:
 spec:
   description: Product (PIM + AI) workloads across all clusters
   sourceRepos:
-    - "*"
+    - https://github.com/electgo/manifest
+    - https://github.com/electgo/manifest.git
+    - https://github.com/electgo/pim-*
+    - https://github.com/electgo/product-ai-enrich
   destinations:
     - name: production
       namespace: pim-*

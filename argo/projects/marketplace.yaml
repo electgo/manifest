@@ -6,21 +6,33 @@ metadata:
 spec:
   description: All marketplace services
   sourceRepos:
-    - https://github.com/electgo/zitadel
-    - https://github.com/ElectGoDev/electgo-be-user
+    - https://github.com/electgo/crawler-tool
+    - https://github.com/electgo/electgo-backroom-fe
+    - https://github.com/electgo/electgo-be-point-reward
     - https://github.com/electgo/electgo-be-product
+    - https://github.com/electgo/electgo-be-report
+    - https://github.com/electgo/electgo-be-sales
+    - https://github.com/electgo/electgo-be-user
+    - https://github.com/electgo/electgo-be-utils
+    - https://github.com/electgo/electgo-cron
+    - https://github.com/electgo/electgo-frontend
     - https://github.com/electgo/electgo-seller-center-be
+    - https://github.com/electgo/electgo-seller-center-fe
   destinations:
+    # apps reference the dev cluster both by name and by server URL
     - name: development
-      namespace: "*"
-      server: https://kubernetes.default.svc
-  destinationServiceAccounts:
-    - defaultServiceAccount: development
-      namespace: "*"
-      server: https://kubernetes.default.svc
+      namespace: electgo-*
+    - name: development
+      namespace: crawler-tool
+    - server: https://10.20.17.100:6443
+      namespace: electgo-*
+    - server: https://10.20.17.100:6443
+      namespace: crawler-tool
   clusterResourceWhitelist:
-    - group: "*"
-      kind: "*"
+    - group: ""
+      kind: Namespace
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
+  orphanedResources:
+    warn: false

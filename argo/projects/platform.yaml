@@ -8,7 +8,9 @@ metadata:
 spec:
   description: Platform tooling (argocd image-updater, ARC, matomo analytics, etc.)
   sourceRepos:
-    - "*"
+    - https://github.com/electgo/manifest
+    - https://github.com/electgo/manifest.git
+    - ghcr.io/actions/actions-runner-controller-charts
   destinations:
     - server: https://kubernetes.default.svc
       namespace: argocd
