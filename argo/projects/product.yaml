@@ -24,6 +24,14 @@ spec:
       namespace: electgo-seller-center
     - name: development
       namespace: n8n
+    # dev-tls-certs Application (project product) places Certificates into
+    # every app namespace on dev; these destinations exist for that app.
+    - name: development
+      namespace: electgo-*
+    - name: development
+      namespace: crawler-tool
+    - name: development
+      namespace: etools-chatbot-*
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
