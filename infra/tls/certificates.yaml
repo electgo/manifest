@@ -318,3 +318,35 @@ spec:
   privateKey:
     algorithm: ECDSA
     size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: fe-chatbot-dev-tls
+  namespace: etools-chatbot-fe
+spec:
+  secretName: fe-chatbot-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "fe-chatbot.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: be-chatbot-dev-tls
+  namespace: etools-chatbot-be
+spec:
+  secretName: be-chatbot-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "be-chatbot.dev.electgo.com"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
