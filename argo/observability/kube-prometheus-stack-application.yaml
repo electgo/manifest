@@ -109,14 +109,11 @@ spec:
                 equal: ["alertname", "namespace"]
           ingress:
             enabled: true
-            ingressClassName: haproxy
+            ingressClassName: traefik
             annotations:
               cert-manager.io/cluster-issuer: letsencrypt-prod
-              haproxy.org/forwarded-for: "true"
-              haproxy.org/forwarded-proto: "true"
-              haproxy.org/ssl-redirect: "false"
-              haproxy.org/timeout-client: 300s
-              haproxy.org/timeout-server: 300s
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+              traefik.ingress.kubernetes.io/router.tls: "true"
             hosts:
               - alertmanager.electgo.com
             tls:
@@ -223,14 +220,11 @@ spec:
               memory: 400Mi
           ingress:
             enabled: true
-            ingressClassName: haproxy
+            ingressClassName: traefik
             annotations:
               cert-manager.io/cluster-issuer: letsencrypt-prod
-              haproxy.org/forwarded-for: "true"
-              haproxy.org/forwarded-proto: "true"
-              haproxy.org/ssl-redirect: "false"
-              haproxy.org/timeout-client: 300s
-              haproxy.org/timeout-server: 300s
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+              traefik.ingress.kubernetes.io/router.tls: "true"
             hosts:
               - grafana.electgo.com
             tls:

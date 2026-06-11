@@ -4,7 +4,7 @@
 #
 # Live source of truth: https://github.com/electgo/matomo (path: helm/matomo)
 # DB:    Percona Server MySQL group-replication, ns "database", primary svc mysql-main-mysql-primary
-# Hostname: track.electgo.com (Cloudflare proxied → ALB electgo-prod-alb-... → haproxy-ingress)
+# Hostname: track.electgo.com (Cloudflare DNS-only → Traefik ingress on production nodes, no ALB)
 #
 # Deploy (alternative):
 #   helm repo add matomo https://helm.matomo.org
@@ -65,13 +65,12 @@ data:
 
     ingress:
       enabled: true
-      ingressClassName: haproxy
+      ingressClassName: traefik
       hostname: track.electgo.com
       annotations:
-        haproxy.org/forwarded-for: "true"
-        haproxy.org/forwarded-proto: "true"
-        haproxy.org/timeout-client: "300s"
-        haproxy.org/timeout-server: "300s"
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        traefik.ingress.kubernetes.io/router.tls: "true"
       tls: true
       extraTls:
         - hosts:

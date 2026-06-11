@@ -80,8 +80,8 @@ repoServer:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                  - electgo-mgmt-control
                   - electgo-mgmt-gitops
+                  - electgo-mgmt-helper
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         - labelSelector:

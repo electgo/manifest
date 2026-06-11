@@ -7,10 +7,8 @@
 # Image: docker.io/openproject/openproject:17.3.1-slim
 #
 # Cluster wiring:
-#   Public:    pm.electgo.com  (Cloudflare CNAME -> ALB, no proxy)
-#   ALB:       electgo-prod-alb-855172431.ap-southeast-3.elb.amazonaws.com (HTTPS:443 ACM cert *.electgo.com)
-#   Ingress:   haproxy-ingress (NodePort 32338) on `haproxy-ingress` ns. ALB target group forwards 443->32338 plain HTTP.
-#   IngressClassName: `haproxy`
+#   Public:    pm.electgo.com  (Cloudflare DNS-only -> Traefik ingress on production nodes, no ALB)
+#   IngressClassName: `traefik`
 #   StorageClass: `gp3-encrypted` (EBS gp3, RWO, encrypted, retain)
 #   PostgreSQL:  bundled by chart (Bitnami subchart, in `openproject` ns) — self-contained.
 #                postgres-main (Percona PG) reserved for other shared services once stable.
@@ -106,15 +104,14 @@ data:
 
     ingress:
       enabled: true
-      ingressClassName: haproxy
+      ingressClassName: traefik
       host: pm.electgo.com
       path: /
       pathType: Prefix
       annotations:
-        haproxy.org/load-balance: roundrobin
-        haproxy.org/timeout-server: "600s"
-        haproxy.org/timeout-client: "600s"
-        haproxy.org/forwarded-for: "true"
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        traefik.ingress.kubernetes.io/router.tls: "true"
       tls:
         enabled: true
         secretName: pm-electgo-com-tls

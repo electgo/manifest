@@ -71,7 +71,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: matomo-public-alb
+  name: matomo-public-http
   namespace: matomo
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
