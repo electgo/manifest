@@ -47,7 +47,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: bot-report-sync-session
-            image: zot.electgo.com/pim-chatbot:production
+            image: zot.electgo.com/pim-chatbot:prod-db4eb066
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/spark", "spark", "report:sync-session"]
@@ -127,7 +127,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: email-schedule-check
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "schedule", "emailschedulecheck"]
@@ -216,7 +216,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: syncprodtable-default
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "schedule", "syncprodtable", "default"]
@@ -305,7 +305,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: syncprodtable-indo
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "schedule", "syncprodtable", "indo"]
@@ -395,7 +395,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: stock-getstock-prod
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "stock", "actgetstock", "production"]
@@ -484,7 +484,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: supplier-stock-elmecon-indo
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "supplier", "getsupplierstock", "elmecon", "indo", "1", "0"]
@@ -573,7 +573,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: supplier-stock-elmecon-indo-full
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "supplier", "getsupplierstock", "elmecon", "indo", "1", "1"]
@@ -662,7 +662,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: supplier-stock-omron
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "supplier", "getsupplierstock", "omron", "default", "1", "1"]
@@ -751,7 +751,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: supplier-price-elmecon
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "supplier", "getsupplierprice", "elmecon_price", "indo", "1", "1"]
@@ -840,7 +840,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: punchout-catalog-default
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "schedule", "syncpunchoutcatalog", "default"]
@@ -929,7 +929,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: punchout-contract-lind
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "schedule", "syncpunchoutcontract", "LIND"]
@@ -1018,7 +1018,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: punchout-contract-arkm
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "schedule", "syncpunchoutcontract", "ARKM"]
@@ -1108,7 +1108,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: wishlist-mail-restock
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "wishlist", "actmailrestock", "forcethequickbrownfoxjumps0verthelazydog"]
@@ -1198,7 +1198,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: magento-sync-wishlist
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "magentoreport", "syncwishlist", "default"]
@@ -1288,7 +1288,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: magento-sync-contacttodd
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "schedule", "syncmgcontacttodd"]
@@ -1378,7 +1378,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: magento-sync-enquirytodd
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "schedule", "syncmgenquirytodd"]
@@ -1468,7 +1468,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: magento-sync-flexibleforms
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "magentoreport", "syncflexibleforms", "default"]
@@ -1557,7 +1557,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: magento-report-sales
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "magentoreport", "syncmgreportsales", "default"]
@@ -1646,7 +1646,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: magento-report-customer
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "magentoreport", "syncmgreportcustomer", "default"]
@@ -1735,7 +1735,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: magento-report-saleskam
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "magentoreport", "syncmgreportsaleskam", "default"]
@@ -1824,7 +1824,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: magento-report-company
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "magentoreport", "syncmgreportcompany", "default"]
@@ -1913,7 +1913,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: magento-synccustomurl-default
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "schedule", "synccustomurl", "default"]
@@ -2002,7 +2002,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: magento-synccustomurl-indo
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "schedule", "synccustomurl", "indo"]
@@ -2091,7 +2091,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: dotdigital-chat-default
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "dotdigital", "syncddchat", "default"]
@@ -2180,7 +2180,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: dotdigital-chat-indo
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "dotdigital", "syncddchat", "indo"]
@@ -2269,7 +2269,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: dotdigital-webinsight-default
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "dotdigital", "syncddwebinsight", "default"]
@@ -2358,7 +2358,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: dotdigital-webinsight-indo
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "dotdigital", "syncddwebinsight", "indo"]
@@ -2447,7 +2447,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: dotdigital-contact-default
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "dotdigital", "syncddcontact", "default"]
@@ -2536,7 +2536,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: dotdigital-contact-indo
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "dotdigital", "syncddcontact", "indo"]
@@ -2625,7 +2625,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: dotdigital-cart-default
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "dotdigital", "syncddcart", "default"]
@@ -2714,7 +2714,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: dotdigital-cart-indo
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "dotdigital", "syncddcart", "indo"]
@@ -2803,7 +2803,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: dotdigital-b2binsight-default
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "dotdigital", "syncddb2binsight", "default"]
@@ -2892,7 +2892,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: dotdigital-b2binsight-indo
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "dotdigital", "syncddb2binsight", "indo"]
@@ -2981,7 +2981,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: wishlist-abandon-check
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "wishlist", "actabandoncheck"]
@@ -3071,7 +3071,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: matomo-sync-traffic
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "piwik", "syncmatomotraffic"]
@@ -3161,7 +3161,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: matomo-sync-performance
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "piwik", "syncmatomoperformance"]
@@ -3250,7 +3250,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: facebook-syncdata-dm
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "facebook", "syncdata", "catalog_dm"]
@@ -3339,7 +3339,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
           containers:
           - name: facebook-syncdata-dm-indo
-            image: zot.electgo.com/pim-master:production
+            image: zot.electgo.com/pim-master:prod-3d9a3a31
             imagePullPolicy: IfNotPresent
             command: ["php"]
             args: ["/var/www/html/public/index.php", "facebook", "syncdata", "catalog_dm_indo"]
