@@ -176,17 +176,8 @@ spec:
               memory: 32Mi
             limits:
               memory: 64Mi
-        kube-state-metrics:
-          metricLabelsAllowlist:
-            - "pods=[*]"
-            - "deployments=[*]"
-            - "persistentvolumeclaims=[*]"
-          resources:
-            requests:
-              cpu: 10m
-              memory: 64Mi
-            limits:
-              memory: 128Mi
+        kubeStateMetrics:
+          enabled: false
         grafana:
           # Decommissioned 2026-06-12: dashboards, datasources, SMTP and
           # alerting config were centralized to the management-cluster

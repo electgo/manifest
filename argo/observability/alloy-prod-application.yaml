@@ -89,6 +89,27 @@ spec:
                     cluster = "production",
                   }
                 }
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-state-metrics
+      targetRevision: 7.4.0
+      helm:
+        releaseName: ksm
+        values: |
+          prometheus:
+            monitor:
+              enabled: true
+              additionalLabels:
+                release: kps
+          metricLabelsAllowlist:
+            - pods=[*]
+            - deployments=[*]
+            - persistentvolumeclaims=[*]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
   syncPolicy:
     automated:
       prune: true
