@@ -30,8 +30,6 @@ spec:
       namespace: arc-systems
     - name: development
       namespace: arc-runners
-    - name: development
-      namespace: database
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
