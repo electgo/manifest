@@ -65,11 +65,11 @@ spec:
         kubeEtcd:
           enabled: false
         alertmanager:
-          # CloudWatch alarms remain the production fanout path; Alertmanager
-          # is enabled here only as a UI for inspecting in-cluster Prometheus
-          # rule firings. The default route is the no-op "null" receiver so
-          # nothing is delivered until a real receiver is added.
-          enabled: true
+          # Disabled 2026-06-12: CloudWatch alarms remain the production
+          # fanout path; the null-receiver inspection UI was unused. Firing
+          # in-cluster rules stay visible through the mgmt Grafana
+          # "Prometheus (prod)" datasource.
+          enabled: false
           alertmanagerSpec:
             replicas: 1
             retention: 120h
