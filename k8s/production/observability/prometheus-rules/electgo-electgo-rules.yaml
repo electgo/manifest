@@ -163,13 +163,6 @@ spec:
           annotations:
             summary: "MySQL exporter cannot reach mysql-main for 2m"
 
-        - alert: ElasticsearchRed
-          expr: elasticsearch_cluster_health_status{color="red"} == 1
-          for: 2m
-          labels: { severity: critical }
-          annotations:
-            summary: "Elasticsearch cluster status RED for 2m"
-
         - alert: KafkaBrokersDown
           expr: kafka_brokers < 1
           for: 2m
