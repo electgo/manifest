@@ -62,6 +62,56 @@ spec:
             server:
               root_url: https://grafana.electgo.com
               serve_from_sub_path: false
+        kube-state-metrics:
+          rbac:
+            extraRules:
+              - apiGroups: ["management.cattle.io"]
+                resources: ["clusters"]
+                verbs: ["list", "watch"]
+          customResourceState:
+            enabled: true
+            config:
+              kind: CustomResourceStateMetrics
+              spec:
+                resources:
+                  - groupVersionKind:
+                      group: management.cattle.io
+                      version: v3
+                      kind: Cluster
+                    labelsFromPath:
+                      cluster_id: [metadata, name]
+                      cluster_name: [spec, displayName]
+                    metrics:
+                      - name: rancher_cluster_condition
+                        help: Rancher cluster status conditions (1=True, 0=False)
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, conditions]
+                            labelsFromPath:
+                              condition: [type]
+                            valueFrom: [status]
+        additionalPrometheusRulesMap:
+          rancher-downstream:
+            groups:
+              - name: rancher.downstream
+                rules:
+                  - alert: RancherDownstreamClusterNotReady
+                    expr: kube_customresource_rancher_cluster_condition{condition="Ready"} == 0
+                    for: 10m
+                    labels:
+                      severity: critical
+                    annotations:
+                      summary: 'Rancher downstream cluster {{ $labels.cluster_name }} not Ready'
+                      description: 'Cluster {{ $labels.cluster_name }} ({{ $labels.cluster_id }}) Ready=False for 10m. Check cattle-cluster-agent connectivity (DNS rancher.electgo.com, wss /v3/connect).'
+                  - alert: RancherDownstreamClusterMetricAbsent
+                    expr: absent(kube_customresource_rancher_cluster_condition{condition="Ready"})
+                    for: 15m
+                    labels:
+                      severity: warning
+                    annotations:
+                      summary: 'Rancher cluster condition metric absent'
+                      description: 'kube-state-metrics customResourceState for management.cattle.io clusters not reporting. Alerting on downstream disconnect is blind.'
         alertmanager:
           alertmanagerSpec:
             nodeSelector:
