@@ -57,7 +57,7 @@ spec:
                 - -c
                 - |
                   set -e
-                  POD=$(kubectl -n matomo get pod -l app.kubernetes.io/name=matomo -o jsonpath='{.items[0].metadata.name}')
+                  POD=$(kubectl -n matomo get pod -l app=matomo --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}')
                   echo "Archiving via pod: $POD"
                   kubectl -n matomo exec "$POD" -- su -s /bin/sh -c 'php /var/www/html/console core:archive --url=https://track.electgo.com' www-data
               resources:
