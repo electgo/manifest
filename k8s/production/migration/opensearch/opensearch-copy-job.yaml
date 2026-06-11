@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: opensearch-copy
+  namespace: database
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: copy
+        image: elasticdump/elasticsearch-dump:v6.112.0
+        env:
+        - name: SRC_PW
+          valueFrom: { secretKeyRef: { name: elasticsearch-main-es-elastic-user, key: elastic } }
+        - name: TGT_EP
+          valueFrom: { secretKeyRef: { name: opensearch-copy-creds, key: endpoint } }
+        - name: TGT_USER
+          valueFrom: { secretKeyRef: { name: opensearch-copy-creds, key: username } }
+        - name: TGT_PW
+          valueFrom: { secretKeyRef: { name: opensearch-copy-creds, key: password } }
+        envFrom:
+        - configMapRef: { name: opensearch-copy-indices }
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -eu
+          SRCBASE="http://elastic:$SRC_PW@elasticsearch-main-es-http.database.svc.cluster.local:9200"
+          TGTBASE="https://$TGT_USER:$TGT_PW@$TGT_EP"
+          for IDX in $INDICES; do
+            echo "=== $IDX: mapping ==="
+            elasticdump --input="$SRCBASE/$IDX" --output="$TGTBASE/$IDX" --type=mapping
+            echo "=== $IDX: data ==="
+            elasticdump --input="$SRCBASE/$IDX" --output="$TGTBASE/$IDX" --type=data --limit=100 --retryAttempts=30 --retryDelay=15000
+          done
+          echo "COPY COMPLETE"
