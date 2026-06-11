@@ -30,21 +30,21 @@ spec:
         - name: env.chatbot_url
           value: https://chat.electgo.com
         - name: env.database_chatbot_hostname
-          value: mysql-main-primary-shim.database.svc.cluster.local
+          value: electgo-prod-mysql.c9qkm8k8s0cd.ap-southeast-3.rds.amazonaws.com
         - name: env.database_default_hostname
-          value: mysql-main-primary-shim.database.svc.cluster.local
+          value: electgo-prod-mysql.c9qkm8k8s0cd.ap-southeast-3.rds.amazonaws.com
         - name: env.database_indo_hostname
-          value: mysql-main-primary-shim.database.svc.cluster.local
+          value: electgo-prod-mysql.c9qkm8k8s0cd.ap-southeast-3.rds.amazonaws.com
         - name: env.database_jagoan_hostname
-          value: mysql-main-mysql-0.mysql-main-mysql.database.svc.cluster.local
+          value: electgo-prod-mysql.c9qkm8k8s0cd.ap-southeast-3.rds.amazonaws.com
         - name: env.database_matomo_hostname
-          value: mysql-main-mysql-0.mysql-main-mysql.database.svc.cluster.local
+          value: electgo-prod-mysql.c9qkm8k8s0cd.ap-southeast-3.rds.amazonaws.com
         - name: env.database_punchout_hostname
-          value: mysql-main-primary-shim.database.svc.cluster.local
+          value: electgo-prod-mysql.c9qkm8k8s0cd.ap-southeast-3.rds.amazonaws.com
         - name: env.database_staging_hostname
-          value: mysql-main-primary-shim.database.svc.cluster.local
+          value: electgo-prod-mysql.c9qkm8k8s0cd.ap-southeast-3.rds.amazonaws.com
         - name: env.database_staging_id_hostname
-          value: mysql-main-primary-shim.database.svc.cluster.local
+          value: electgo-prod-mysql.c9qkm8k8s0cd.ap-southeast-3.rds.amazonaws.com
         - name: env.downloader_imageUploadUrl
           value: https://pim.electgo.com/data/downloader/
         - name: ingress.host
