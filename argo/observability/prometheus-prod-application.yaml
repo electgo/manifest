@@ -118,6 +118,8 @@ spec:
                   - alertmanager.electgo.com
         prometheus:
           prometheusSpec:
+            externalLabels:
+              cluster: production
             retention: 15d
             retentionSize: "80GB"
             scrapeInterval: 30s
