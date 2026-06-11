@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: haproxy-ingress
+  namespace: haproxy-ingress
+  labels:
+    release: kps
+    app.kubernetes.io/part-of: observability
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: haproxy
+      app.kubernetes.io/instance: haproxy
+  podMetricsEndpoints:
+    # :6060/metrics — controller's Go runtime metrics (goroutines, GC, memstats).
+    - port: admin
+      path: /metrics
+      interval: 30s
+    # :1024/metrics — HAProxy data-plane stats (haproxy_process_*,
+    # haproxy_frontend_*, haproxy_backend_*, haproxy_server_*). Available
+    # because the controller runs with `--prometheus`.
+    - port: stat
+      path: /metrics
+      interval: 30s

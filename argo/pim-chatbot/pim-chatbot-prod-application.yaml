@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pim-chatbot-prod
+  namespace: argocd
+spec:
+  project: product
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: pim-chatbot-env
+      namespace: pim-chatbot
+      jsonPointers:
+        - /data
+        - /stringData
+    - group: apps
+      kind: Deployment
+      name: pim-chatbot
+      namespace: pim-chatbot
+      jsonPointers:
+        - /spec/template/metadata/annotations/checksum~1env
+  source:
+    repoURL: https://github.com/electgo/pim-chatbot
+    targetRevision: main
+    path: deployments/helm
+    helm:
+      releaseName: pim-chatbot
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
+      parameters:
+        - name: migration.enabled
+          value: "false"
+        - name: persistence.writable.storageClass
+          value: efs-sc-pim-www
+        - name: persistence.exported.storageClass
+          value: efs-sc-pim-www
+  destination:
+    name: production
+    namespace: pim-chatbot
+  syncPolicy:
+    automated:
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

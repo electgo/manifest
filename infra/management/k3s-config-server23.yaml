@@ -1,0 +1,16 @@
+server: https://k3s.int.electgo.com:6443
+token: ${K3S_NODE_TOKEN}
+tls-san:
+  - k3s.int.electgo.com
+  - ${INTERNAL_NLB_DNS_NAME}
+  - 10.20.138.78
+etcd-s3: true
+etcd-s3-bucket: ${ELECTGO_BACKUP_BUCKET}
+etcd-s3-region: ap-southeast-3
+etcd-s3-folder: electgo/management/etcd
+etcd-snapshot-schedule-cron: "0 */6 * * *"
+etcd-snapshot-retention: 28
+kubelet-arg:
+  - system-reserved=memory=128Mi
+  - kube-reserved=memory=128Mi
+  - eviction-hard=memory.available<256Mi

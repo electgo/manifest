@@ -1,0 +1,82 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pim-master-prod
+  namespace: argocd
+spec:
+  project: product
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: pim-master-env
+      namespace: pim-master
+      jsonPointers:
+        - /data
+        - /stringData
+  source:
+    repoURL: https://github.com/electgo/pim-master
+    targetRevision: main
+    path: deployments/helm
+    helm:
+      releaseName: pim-master
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
+      parameters:
+        - name: env.app_base_url
+          value: https://pim.electgo.com
+        - name: env.base_url
+          value: https://pim.electgo.com
+        - name: env.chatbot_url
+          value: https://chat.electgo.com
+        - name: env.database_chatbot_hostname
+          value: mysql-main-primary-shim.database.svc.cluster.local
+        - name: env.database_default_hostname
+          value: mysql-main-primary-shim.database.svc.cluster.local
+        - name: env.database_indo_hostname
+          value: mysql-main-primary-shim.database.svc.cluster.local
+        - name: env.database_jagoan_hostname
+          value: mysql-main-mysql-0.mysql-main-mysql.database.svc.cluster.local
+        - name: env.database_matomo_hostname
+          value: mysql-main-mysql-0.mysql-main-mysql.database.svc.cluster.local
+        - name: env.database_punchout_hostname
+          value: mysql-main-primary-shim.database.svc.cluster.local
+        - name: env.database_staging_hostname
+          value: mysql-main-primary-shim.database.svc.cluster.local
+        - name: env.database_staging_id_hostname
+          value: mysql-main-primary-shim.database.svc.cluster.local
+        - name: env.downloader_imageUploadUrl
+          value: https://pim.electgo.com/data/downloader/
+        - name: ingress.host
+          value: pim.electgo.com
+        - name: persistence.exported.storageClass
+          value: efs-sc-pim-www
+        - name: persistence.media.storageClass
+          value: efs-sc-pim-www
+        - name: persistence.pdf.storageClass
+          value: efs-sc-pim-www
+        - name: persistence.writable.storageClass
+          value: efs-sc-pim-www
+        - name: env.pim_webdriver_temp_file
+          value: /var/www/chromedriver/crawl.txt
+        - name: env.piwik_default_query_url
+          value: https://katyngo.piwik.pro/api/analytics/v1/query/
+        - name: env.piwik_default_url
+          value: https://katyngo.piwik.pro/auth/token
+        - name: env.piwik_default_website_id
+          value: c9c03de3-bec3-4560-a452-3bfdeb4fe6e1
+        - name: env.piwik_indo_query_url
+          value: https://electgo-id.piwik.pro/api/analytics/v1/query/
+        - name: env.piwik_indo_url
+          value: https://electgo-id.piwik.pro/auth/token
+        - name: env.piwik_indo_website_id
+          value: 3ccbcb17-76d3-470b-8cb5-8fc223f6be09
+  destination:
+    name: production
+    namespace: pim-master
+  syncPolicy:
+    automated:
+      selfHeal: true
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true

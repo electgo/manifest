@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: product-ai-enrich-prod
+  namespace: argocd
+spec:
+  project: product
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: product-ai-enrich-secret
+      namespace: product-ai-enrich
+      jsonPointers:
+        - /data
+        - /stringData
+    - group: apps
+      kind: Deployment
+      name: product-ai-enrich
+      namespace: product-ai-enrich
+      jsonPointers:
+        - /spec/template/metadata/annotations/checksum~1secret
+  source:
+    repoURL: https://github.com/electgo/product-ai-enrich
+    targetRevision: main
+    path: helm/product-ai-enrich
+    helm:
+      releaseName: product-ai-enrich
+      valueFiles:
+        - values-prod.yaml
+      parameters:
+        - name: replicaCount
+          value: "1"
+  destination:
+    name: production
+    namespace: product-ai-enrich
+  syncPolicy:
+    # Standby mode: production app is registered but will not auto-sync
+    # until team explicitly runs Sync (or enables automated sync).
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

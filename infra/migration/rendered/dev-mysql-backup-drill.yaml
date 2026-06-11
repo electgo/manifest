@@ -1,0 +1,78 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dev-mysql-backup-drill
+  namespace: database
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: drill
+          image: amazon/aws-cli:2.17.56
+          resources:
+            requests: { cpu: 100m, memory: 256Mi, ephemeral-storage: 5Gi }
+            limits:   { cpu: "1",   memory: 2Gi,   ephemeral-storage: 20Gi }
+          env:
+            - name: BACKUP_BUCKET
+              valueFrom: { secretKeyRef: { name: backup-s3, key: bucket } }
+            - name: AWS_REGION
+              valueFrom: { secretKeyRef: { name: backup-s3, key: region } }
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: backup-s3, key: accesskey } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: backup-s3, key: secretkey } }
+            - name: MYSQL_PWD
+              valueFrom: { secretKeyRef: { name: mysql, key: MYSQL_ROOT_PASSWORD } }
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              # amazon/aws-cli is Amazon Linux 2/2023
+              yum install -y mysql gzip >/dev/null 2>&1 || dnf install -y mysql gzip >/dev/null 2>&1 || true
+              which mysqldump >/dev/null 2>&1 || (echo "mysqldump not found, trying pip install..."; pip install pymysql >/dev/null 2>&1)
+
+              echo "=== step 1: take fresh backup of dev MySQL ==="
+              stamp=$(date -u +%Y%m%d%H%M%S)
+              dump="/tmp/drill-mysql-${stamp}.sql.gz"
+              mysqldump -h mysql.database.svc.cluster.local -uroot \
+                --databases pim_chatbot_dev \
+                --single-transaction --routines --triggers --events \
+                --set-gtid-purged=OFF --column-statistics=0 2>/tmp/drill.dump.err | gzip > "$dump"
+              rc=${PIPESTATUS[0]}
+              [ "$rc" -ne 0 ] && { cat /tmp/drill.dump.err >&2; exit 1; }
+              test -s "$dump"
+              size=$(stat -c%s "$dump")
+              echo "backup: $(numfmt --to=iec $size) at $dump"
+
+              echo "=== step 2: upload to S3 ==="
+              aws s3 cp "$dump" "s3://${BACKUP_BUCKET}/electgo/db-dumps/dev/drills/$(basename "$dump")" --region "$AWS_REGION"
+              echo "uploaded to s3://${BACKUP_BUCKET}/electgo/db-dumps/dev/drills/"
+
+              echo "=== step 3: drop + recreate test DB and restore from dump ==="
+              TEST_DB="drill_restore_$$"
+              MYSQL_PWD="$MYSQL_PWD" mysql -h mysql.database.svc.cluster.local -uroot \
+                -e "DROP DATABASE IF EXISTS $TEST_DB; CREATE DATABASE $TEST_DB;"
+              zcat "$dump" | sed "s/\`pim_chatbot_dev\`/\`$TEST_DB\`/g" | MYSQL_PWD="$MYSQL_PWD" mysql -h mysql.database.svc.cluster.local -uroot --force
+
+              echo "=== step 4: verify restored DB row count matches original ==="
+              orig=$(MYSQL_PWD="$MYSQL_PWD" mysql -h mysql.database.svc.cluster.local -uroot -BNe \
+                "SELECT COUNT(*) FROM pim_chatbot_dev.qna_master;")
+              rest=$(MYSQL_PWD="$MYSQL_PWD" mysql -h mysql.database.svc.cluster.local -uroot -BNe \
+                "SELECT COUNT(*) FROM $TEST_DB.qna_master;")
+              echo "original qna_master count: $orig"
+              echo "restored qna_master count: $rest"
+              if [ "$orig" = "$rest" ] && [ "$orig" -gt 0 ]; then
+                echo "RESTORE DRILL: PASS (row counts match)"
+              else
+                echo "RESTORE DRILL: FAIL (counts differ)" >&2
+                exit 1
+              fi
+
+              echo "=== step 5: cleanup test DB ==="
+              MYSQL_PWD="$MYSQL_PWD" mysql -h mysql.database.svc.cluster.local -uroot \
+                -e "DROP DATABASE $TEST_DB;"
+
+              echo "DRILL COMPLETE OK"

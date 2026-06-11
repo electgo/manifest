@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elasticsearch-eks-to-dev-credentials
+  namespace: database
+type: Opaque
+stringData:
+  source-host: "acc685516ce4b4781a3977af4bec2ae9-25b37aa192ac1c33.elb.ap-southeast-3.amazonaws.com"
+  source-port: "9200"
+  source-user: "${ELASTICSEARCH_SOURCE_USER}"
+  source-password: "${ELASTICSEARCH_SOURCE_PASSWORD}"
+  target-host: "elasticsearch.database.svc.cluster.local"
+  target-port: "9200"
+  target-user: "${ELASTICSEARCH_TARGET_USER}"
+  target-password: "${ELASTICSEARCH_TARGET_PASSWORD}"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: elasticsearch-eks-to-dev
+  namespace: database
+spec:
+  activeDeadlineSeconds: 7200
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: es-migrate
+          image: python:3.12-slim
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          env:
+            - name: SRC_HOST
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: source-host } }
+            - name: SRC_PORT
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: source-port } }
+            - name: SRC_USER
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: source-user } }
+            - name: SRC_PASS
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: source-password } }
+            - name: TGT_HOST
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: target-host } }
+            - name: TGT_PORT
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: target-port } }
+            - name: TGT_USER
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: target-user } }
+            - name: TGT_PASS
+              valueFrom: { secretKeyRef: { name: elasticsearch-eks-to-dev-credentials, key: target-password } }
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              pip install --quiet 'elasticsearch>=8,<9'
+              python - <<'PY'
+              import os
+              from elasticsearch import Elasticsearch, helpers
+
+              src = Elasticsearch(
+                  f"http://{os.environ['SRC_HOST']}:{os.environ['SRC_PORT']}",
+                  basic_auth=(os.environ["SRC_USER"], os.environ["SRC_PASS"]),
+                  request_timeout=120,
+              )
+              tgt = Elasticsearch(
+                  f"http://{os.environ['TGT_HOST']}:{os.environ['TGT_PORT']}",
+                  basic_auth=(os.environ["TGT_USER"], os.environ["TGT_PASS"]),
+                  request_timeout=120,
+              )
+
+              src.info()
+              tgt.info()
+              indices = sorted(
+                  row["index"]
+                  for row in src.cat.indices(format="json")
+                  if not row["index"].startswith(".")
+              )
+              if not indices:
+                  raise SystemExit("no indices discovered from source")
+
+              def clean_settings(settings):
+                  index_settings = dict(settings.get("index", {}))
+                  for key in [
+                      "uuid",
+                      "version",
+                      "provided_name",
+                      "creation_date",
+                      "history",
+                      "routing",
+                  ]:
+                      index_settings.pop(key, None)
+                  return {"index": index_settings}
+
+              ok = []
+              for index in indices:
+                  if tgt.indices.exists(index=index):
+                      tgt.indices.delete(index=index)
+                  settings = clean_settings(src.indices.get_settings(index=index)[index]["settings"])
+                  mappings = src.indices.get_mapping(index=index)[index]["mappings"]
+                  aliases = src.indices.get_alias(index=index, ignore_unavailable=True).get(index, {}).get("aliases", {})
+                  tgt.indices.create(index=index, settings=settings, mappings=mappings, aliases=aliases)
+
+                  def actions():
+                      for hit in helpers.scan(src, index=index, size=1000, request_timeout=120):
+                          yield {
+                              "_op_type": "index",
+                              "_index": index,
+                              "_id": hit["_id"],
+                              "_source": hit.get("_source", {}),
+                          }
+
+                  helpers.bulk(tgt, actions(), chunk_size=500, request_timeout=120, raise_on_error=True)
+                  tgt.indices.refresh(index=index)
+                  src_count = src.count(index=index)["count"]
+                  tgt_count = tgt.count(index=index)["count"]
+                  print(f"{index}: source={src_count} target={tgt_count}")
+                  if src_count != tgt_count:
+                      raise SystemExit(f"count mismatch for {index}: source={src_count} target={tgt_count}")
+                  ok.append(index)
+
+              try:
+                  roles = src.security.get_role()
+                  for name, body in roles.items():
+                      try:
+                          tgt.security.put_role(name=name, **body)
+                      except Exception as exc:
+                          print(f"role skip {name}: {exc}")
+              except Exception as exc:
+                  print(f"role copy skipped: {exc}")
+
+              print(f"elasticsearch migration complete indices={len(ok)}")
+              PY

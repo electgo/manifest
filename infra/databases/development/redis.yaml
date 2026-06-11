@@ -27,6 +27,27 @@ spec:
   selector:
     app.kubernetes.io/name: redis
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: database-sharedops-credentials
+  namespace: database
+stringData:
+  username: sharedops
+  password: __REDACTED_SHAREDOPS_PASSWORD__
+  index: "4"
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: database-redis-default-credentials
+  namespace: database
+stringData:
+  username: default
+  password: d1daaaf0006128f07dea8f5e3fb90b98
+type: Opaque
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -51,13 +72,23 @@ spec:
             - sh
             - -c
             - |
-              printf 'user default on nopass ~* &* +@all\nuser developer on >%s ~* &* +@all\n' "$DEVELOPER_PASSWORD" > /data/users.acl
+              printf 'user default on >%s ~* &* +@all\nuser developer on >%s ~* &* +@all\nuser sharedops on >%s ~* &* +@all\n' "$DEFAULT_PASSWORD" "$DEVELOPER_PASSWORD" "$SHAREDOPS_PASSWORD" > /data/users.acl
               exec redis-server --aclfile /data/users.acl --maxmemory 200mb --maxmemory-policy allkeys-lru
           env:
+            - name: DEFAULT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-redis-default-credentials
+                  key: password
             - name: DEVELOPER_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: database-developer-credentials
+                  key: password
+            - name: SHAREDOPS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-sharedops-credentials
                   key: password
           ports:
             - name: redis
@@ -71,11 +102,11 @@ spec:
               memory: 256Mi
           readinessProbe:
             exec:
-              command: ["sh", "-c", "redis-cli ping"]
+              command: ["sh", "-c", "redis-cli -a \"$DEFAULT_PASSWORD\" --no-auth-warning ping"]
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
             exec:
-              command: ["sh", "-c", "redis-cli ping"]
+              command: ["sh", "-c", "redis-cli -a \"$DEFAULT_PASSWORD\" --no-auth-warning ping"]
             initialDelaySeconds: 30
             periodSeconds: 20

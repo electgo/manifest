@@ -1,0 +1,81 @@
+# Replaced per-namespace Certificate CRs (which hit LE rate limits) with a
+# single source-of-truth Certificate in `default` (already present, created
+# 30 days ago) plus a daily CronJob that mirrors the resulting Secret into
+# each PIM/app namespace. cert-manager renews the source ~30 days before
+# expiry; the CronJob copies the fresh data within 24h.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dev-tls-mirror
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dev-tls-mirror
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dev-tls-mirror
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dev-tls-mirror
+subjects:
+  - kind: ServiceAccount
+    name: dev-tls-mirror
+    namespace: default
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dev-tls-mirror
+  namespace: default
+spec:
+  schedule: "0 3 * * *"        # daily 03:00 UTC
+  timeZone: "Etc/UTC"
+  startingDeadlineSeconds: 600
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          serviceAccountName: dev-tls-mirror
+          restartPolicy: OnFailure
+          containers:
+            - name: mirror
+              image: bitnami/kubectl:1.30
+              env:
+                - name: TARGET_NS
+                  value: "n8n pim-bucket-upload pim-chatbot-dev pim-master-dev pim-partners-bundling pim-sku-finder pim-websocket product-ai-enrich"
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  SRC=$(kubectl -n default get secret dev-services-tls -o json \
+                    | python3 -c "import json,sys;d=json.load(sys.stdin);d['metadata']={'name':'X','namespace':'X','annotations':{'mirror.source':'default/dev-services-tls'}};print(json.dumps(d))")
+                  apply_to() {
+                    local ns="$1"; local name="$2"
+                    echo "mirror -> $ns/$name"
+                    echo "$SRC" \
+                      | python3 -c "import json,sys;d=json.load(sys.stdin);d['metadata']['namespace']='$ns';d['metadata']['name']='$name';print(json.dumps(d))" \
+                      | kubectl apply -f -
+                  }
+                  for NS in $TARGET_NS; do apply_to "$NS" dev-services-tls; done
+                  # pim-sku-finder chart computes secret name from host, so it expects two extra targets:
+                  apply_to pim-sku-finder sku-finder-id-dev-electgo-com-tls
+                  apply_to pim-sku-finder sku-finder-sg-dev-electgo-com-tls
+              resources:
+                requests: { cpu: 10m, memory: 32Mi }
+                limits: { memory: 64Mi }

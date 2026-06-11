@@ -1,0 +1,360 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack-prod
+  namespace: argocd
+spec:
+  destination:
+    name: production
+    namespace: monitoring
+  project: observability
+  source:
+    chart: kube-prometheus-stack
+    helm:
+      parameters:
+      - name: prometheus.prometheusSpec.resources.requests.cpu
+        value: 300m
+      - name: prometheus.prometheusSpec.resources.requests.memory
+        value: 2Gi
+      - name: grafana.resources.requests.cpu
+        value: 25m
+      - name: grafana.resources.requests.memory
+        value: 200Mi
+      - name: grafana.resources.limits.memory
+        value: 400Mi
+      releaseName: kps
+      values: |
+        crds:
+          enabled: true
+        cleanPrometheusOperatorObjectNames: true
+        defaultRules:
+          create: true
+          # KubeJobFailed in upstream fires on any kube_job_failed > 0, so every
+          # ancient failed Job that's still in history keeps the alert active.
+          # We replace it with electgo.workloads.CronJobRecentFailure below
+          # (window-scoped to the last hour).
+          disabled:
+            KubeJobFailed: true
+          rules:
+            etcd: false
+            kubeApiserverAvailability: true
+            kubeApiserverBurnrate: true
+            kubeApiserverHistogram: true
+            kubeApiserverSlos: true
+            kubelet: true
+            kubeProxy: false
+            kubernetesApps: true
+            kubernetesResources: true
+            kubernetesStorage: true
+            kubernetesSystem: true
+            kubeScheduler: false
+            kubeStateMetrics: true
+            network: true
+            node: true
+            nodeExporterAlerting: true
+            nodeExporterRecording: true
+            prometheus: true
+            prometheusOperator: true
+        # Scheduler/controller-manager are EKS-managed; no scrape target on worker nodes.
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        kubeProxy:
+          enabled: false
+        kubeEtcd:
+          enabled: false
+        alertmanager:
+          # CloudWatch alarms remain the production fanout path; Alertmanager
+          # is enabled here only as a UI for inspecting in-cluster Prometheus
+          # rule firings. The default route is the no-op "null" receiver so
+          # nothing is delivered until a real receiver is added.
+          enabled: true
+          alertmanagerSpec:
+            replicas: 1
+            retention: 120h
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: gp3-encrypted
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 5Gi
+            resources:
+              requests:
+                cpu: 25m
+                memory: 64Mi
+              limits:
+                memory: 128Mi
+          config:
+            route:
+              receiver: "null"
+              group_by: ["alertname", "namespace"]
+              group_wait: 30s
+              group_interval: 5m
+              repeat_interval: 12h
+            receivers:
+              - name: "null"
+            inhibit_rules:
+              - source_matchers: ["severity = critical"]
+                target_matchers: ["severity =~ warning|info"]
+                equal: ["alertname", "namespace"]
+          ingress:
+            enabled: false
+            ingressClassName: haproxy
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              haproxy.org/forwarded-for: "true"
+              haproxy.org/forwarded-proto: "true"
+              haproxy.org/ssl-redirect: "false"
+              haproxy.org/timeout-client: 300s
+              haproxy.org/timeout-server: 300s
+            hosts:
+              - alertmanager.electgo.com
+            tls:
+              - secretName: alertmanager-electgo-com-tls
+                hosts:
+                  - alertmanager.electgo.com
+        prometheus:
+          prometheusSpec:
+            retention: 15d
+            retentionSize: "80GB"
+            scrapeInterval: 30s
+            evaluationInterval: 30s
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            probeSelectorNilUsesHelmValues: false
+            resources:
+              requests:
+                cpu: 100m
+                memory: 1Gi
+              limits:
+                memory: 3Gi
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: gp3-encrypted
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 100Gi
+            additionalScrapeConfigs:
+              - job_name: kubernetes-pods
+                kubernetes_sd_configs:
+                  - role: pod
+                relabel_configs:
+                  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                    action: keep
+                    regex: "true"
+                  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+                    action: replace
+                    target_label: __metrics_path__
+                    regex: (.+)
+                  - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                    action: replace
+                    regex: ([^:]+)(?::\d+)?;(\d+)
+                    replacement: $1:$2
+                    target_label: __address__
+                  - action: labelmap
+                    regex: __meta_kubernetes_pod_label_(.+)
+                  - source_labels: [__meta_kubernetes_namespace]
+                    action: replace
+                    target_label: namespace
+                  - source_labels: [__meta_kubernetes_pod_name]
+                    action: replace
+                    target_label: pod
+        prometheus-node-exporter:
+          hostRootFsMount:
+            enabled: true
+          resources:
+            requests:
+              cpu: 5m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+        kube-state-metrics:
+          metricLabelsAllowlist:
+            - "pods=[*]"
+            - "deployments=[*]"
+            - "persistentvolumeclaims=[*]"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+        grafana:
+          enabled: true
+          # Stable admin credentials sourced from a hand-managed secret so
+          # the chart stops rotating the password on every reconcile (which
+          # diverges from the password actually baked into Grafana's DB on
+          # the PVC). Manage the secret out-of-band:
+          #   kubectl -n monitoring patch secret grafana-admin-credentials \
+          #     --type='json' -p='[{"op":"replace","path":"/data/admin-password","value":"<base64>"}]'
+          # then bounce the Grafana pod.
+          admin:
+            existingSecret: grafana-admin-credentials
+            userKey: admin-user
+            passwordKey: admin-password
+          defaultDashboardsTimezone: Asia/Jakarta
+          persistence:
+            enabled: true
+            type: pvc
+            storageClassName: gp3-encrypted
+            size: 10Gi
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          ingress:
+            enabled: false
+            ingressClassName: haproxy
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              haproxy.org/forwarded-for: "true"
+              haproxy.org/forwarded-proto: "true"
+              haproxy.org/ssl-redirect: "false"
+              haproxy.org/timeout-client: 300s
+              haproxy.org/timeout-server: 300s
+            hosts:
+              - grafana.electgo.com
+            tls:
+              - secretName: grafana-electgo-com-tls
+                hosts:
+                  - grafana.electgo.com
+          grafana.ini:
+            server:
+              root_url: https://grafana.electgo.com
+              serve_from_sub_path: false
+            security:
+              cookie_secure: true
+              strict_transport_security: true
+            analytics:
+              reporting_enabled: false
+              check_for_updates: false
+            users:
+              auto_assign_org_role: Viewer
+            auth.anonymous:
+              enabled: false
+            smtp:
+              enabled: true
+              host: smtp.gmail.com:587
+              user: ptdigitalsolusigrup@gmail.com
+              from_address: ptdigitalsolusigrup@gmail.com
+              from_name: ElectGo Production Grafana
+              startTLS_policy: MandatoryStartTLS
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              uid: loki
+              access: proxy
+              url: http://loki-gateway.monitoring.svc:80
+              jsonData:
+                maxLines: 5000
+            - name: CloudWatch
+              type: cloudwatch
+              uid: cloudwatch
+              jsonData:
+                authType: default
+                defaultRegion: ap-southeast-3
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+                - name: default
+                  orgId: 1
+                  folder: ""
+                  type: file
+                  disableDeletion: false
+                  editable: true
+                  options:
+                    path: /var/lib/grafana/dashboards/default
+          dashboards:
+            default:
+              loki-logs:
+                gnetId: 13639
+                revision: 2
+                datasource: Loki
+              node-exporter-full:
+                gnetId: 1860
+                revision: 37
+                datasource: Prometheus
+              kubernetes-cluster:
+                gnetId: 7249
+                revision: 1
+                datasource: Prometheus
+              kubernetes-pods:
+                gnetId: 6417
+                revision: 1
+                datasource: Prometheus
+              postgres-exporter:
+                gnetId: 9628
+                revision: 7
+                datasource: Prometheus
+              mysql-exporter:
+                gnetId: 7362
+                revision: 5
+                datasource: Prometheus
+              mongodb-exporter:
+                gnetId: 7353
+                revision: 1
+                datasource: Prometheus
+              redis:
+                gnetId: 763
+                revision: 6
+                datasource: Prometheus
+              cloudwatch-eks:
+                gnetId: 17119
+                revision: 1
+                datasource: CloudWatch
+          smtp:
+            existingSecret: grafana-smtp-credentials
+            userKey: user
+            passwordKey: password
+          alerting:
+            contactpoints.yaml:
+              apiVersion: 1
+              contactPoints:
+                - orgId: 1
+                  name: electgo-production-email
+                  receivers:
+                    - uid: electgo-production-email
+                      type: email
+                      settings:
+                        addresses: yohannes@limkimhai.com.sg;yusoof.sh@dsg.id;chesa.nur@dsg.id
+                        singleEmail: false
+            policies.yaml:
+              apiVersion: 1
+              policies:
+                - orgId: 1
+                  receiver: electgo-production-email
+                  group_by:
+                    - grafana_folder
+                    - alertname
+                  group_wait: 30s
+                  group_interval: 5m
+                  repeat_interval: 12h
+        additionalPrometheusRulesMap:
+          electgo-certificates:
+            groups:
+              - name: electgo.certificates
+                interval: 1m
+                rules:
+                  - alert: CertificateExpiresSoon
+                    expr: (certmanager_certificate_expiration_timestamp_seconds - time()) < 14 * 24 * 60 * 60
+                    for: 30m
+                    labels:
+                      severity: critical
+                    annotations:
+                      summary: Certificate {{ $labels.exported_namespace }}/{{ $labels.name }} expires in less than 14 days
+                      description: Renew or inspect cert-manager for {{ $labels.exported_namespace }}/{{ $labels.name }} before TLS expiry.
+    repoURL: https://prometheus-community.github.io/helm-charts
+    targetRevision: 65.5.0
+  syncPolicy:
+    syncOptions:
+    - SkipHooks=true
+    - ServerSideApply=true

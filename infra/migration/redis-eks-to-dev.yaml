@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-eks-to-dev-credentials
+  namespace: database
+type: Opaque
+stringData:
+  source-host: "${REDIS_SOURCE_HOST}"
+  source-port: "${REDIS_SOURCE_PORT}"
+  source-password: "${REDIS_SOURCE_PASSWORD}"
+  target-host: "redis.database.svc.cluster.local"
+  target-port: "6379"
+  target-password: "${REDIS_TARGET_PASSWORD}"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redis-eks-to-dev
+  namespace: database
+spec:
+  activeDeadlineSeconds: 3600
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: redis-migrate
+          image: python:3.12-slim
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          env:
+            - name: SRC_HOST
+              valueFrom: { secretKeyRef: { name: redis-eks-to-dev-credentials, key: source-host } }
+            - name: SRC_PORT
+              valueFrom: { secretKeyRef: { name: redis-eks-to-dev-credentials, key: source-port } }
+            - name: SRC_PASS
+              valueFrom: { secretKeyRef: { name: redis-eks-to-dev-credentials, key: source-password } }
+            - name: TGT_HOST
+              valueFrom: { secretKeyRef: { name: redis-eks-to-dev-credentials, key: target-host } }
+            - name: TGT_PORT
+              valueFrom: { secretKeyRef: { name: redis-eks-to-dev-credentials, key: target-port } }
+            - name: TGT_PASS
+              valueFrom: { secretKeyRef: { name: redis-eks-to-dev-credentials, key: target-password } }
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -uo pipefail
+              pip install --quiet redis
+              python - <<'PY'
+              import os
+              import redis
+
+              target_password = os.environ["TGT_PASS"] or None
+              src = redis.Redis(
+                  host=os.environ["SRC_HOST"],
+                  port=int(os.environ["SRC_PORT"]),
+                  password=os.environ["SRC_PASS"],
+                  decode_responses=False,
+                  socket_timeout=30,
+              )
+              tgt = redis.Redis(
+                  host=os.environ["TGT_HOST"],
+                  port=int(os.environ["TGT_PORT"]),
+                  password=target_password,
+                  decode_responses=False,
+                  socket_timeout=30,
+              )
+              ok = fail = 0
+              for key in src.scan_iter(match="*", count=1000):
+                  try:
+                      ttl = src.pttl(key)
+                      ttl = ttl if ttl and ttl > 0 else 0
+                      data = src.dump(key)
+                      if data is None:
+                          fail += 1
+                          continue
+                      tgt.restore(key, ttl, data, replace=True)
+                      ok += 1
+                  except Exception as exc:
+                      fail += 1
+                      print(f"FAIL {key!r}: {exc}")
+              print(f"redis migration complete ok={ok} fail={fail}")
+              if fail:
+                  raise SystemExit(1)
+              PY

@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: electgo-seller-center-be-dev
+  namespace: argocd
+spec:
+  project: marketplace
+  source:
+    repoURL: https://github.com/electgo/electgo-seller-center-be
+    targetRevision: develop
+    path: helm/electgo-seller-center-be
+    helm:
+      valueFiles:
+        - values-dev.yaml
+      parameters:
+        - name: namespace.name
+          value: electgo-seller-center
+        - name: replicaCount
+          value: "1"
+        - name: secret.create
+          value: "false"
+        - name: imageCredentials.create
+          value: "false"
+        - name: ingress.tls.enabled
+          value: "true"
+        - name: env.config.ELECTGO_API_PRODUCT
+          value: http://electgo-be-product.electgo-be-product.svc.cluster.local:3200/api
+        - name: env.config.USER_SERVICE_URL
+          value: http://electgo-be-user.marketplace.svc.cluster.local:3030/api
+        - name: env.config.UTIL_SERVICE_URL
+          value: http://electgo-be-utils.electgo-be-utils.svc.cluster.local:3202
+  destination:
+    server: https://10.20.17.100:6443
+    namespace: electgo-seller-center
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false

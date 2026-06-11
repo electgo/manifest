@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: magento-nginx-config
+  namespace: magento
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name magento-dev.electgo.com;
+        root /var/www/magento/pub;
+        
+        index index.php;
+        autoindex off;
+        
+        location / {
+            try_files $uri $uri/ /index.php?$query_string;
+        }
+        
+        location ~ \.php$ {
+            fastcgi_pass 127.0.0.1:9000;
+            fastcgi_index index.php;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            include fastcgi_params;
+        }
+        
+        location ~* \.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+        
+        location /media/ {
+            try_files $uri $uri/ /get.php?$query_string;
+        }
+        
+        location /static/ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            try_files $uri $uri/ /get.php?$query_string;
+        }
+    }

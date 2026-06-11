@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-eks-to-mgmt-credentials
+  namespace: database
+type: Opaque
+stringData:
+  source-host: "a5d52b3b5ebc141bdb6f2617f8851de1-d1e7d031019415f7.elb.ap-southeast-3.amazonaws.com"
+  source-user: "${MYSQL_SOURCE_USER}"
+  source-password: "${MYSQL_SOURCE_PASSWORD}"
+  target-host: "mysql.database.svc.cluster.local"
+  target-user: "${MYSQL_MGMT_TARGET_USER}"
+  target-password: "${MYSQL_MGMT_TARGET_PASSWORD}"
+  databases: "matomo"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mysql-eks-to-mgmt
+  namespace: database
+spec:
+  activeDeadlineSeconds: 7200
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: mysql-migrate
+          image: mysql:8
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+              ephemeral-storage: 5Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+              ephemeral-storage: 10Gi
+          env:
+            - name: SRC_HOST
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-mgmt-credentials, key: source-host } }
+            - name: SRC_USER
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-mgmt-credentials, key: source-user } }
+            - name: SRC_PASS
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-mgmt-credentials, key: source-password } }
+            - name: TGT_HOST
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-mgmt-credentials, key: target-host } }
+            - name: TGT_USER
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-mgmt-credentials, key: target-user } }
+            - name: TGT_PASS
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-mgmt-credentials, key: target-password } }
+            - name: DATABASES
+              valueFrom: { secretKeyRef: { name: mysql-eks-to-mgmt-credentials, key: databases } }
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -uo pipefail
+              failed=""; ok=0
+              for db in $DATABASES; do
+                case "$db" in (*[!a-zA-Z0-9_]*|'') echo "invalid database name: $db" >&2; exit 1;; esac
+                dump="/tmp/${db}.sql.gz"
+                MYSQL_PWD="$SRC_PASS" mysqldump -h "$SRC_HOST" -u "$SRC_USER" --databases "$db" --single-transaction --skip-lock-tables --set-gtid-purged=OFF --routines --triggers --events --hex-blob --no-tablespaces --column-statistics=0 | gzip > "$dump"
+                dump_rc=${PIPESTATUS[0]}
+                if [ "$dump_rc" -ne 0 ]; then failed="$failed $db(dump)"; continue; fi
+                zcat "$dump" | MYSQL_PWD="$TGT_PASS" mysql -h "$TGT_HOST" -u "$TGT_USER" --force --max-allowed-packet=512M
+                restore_rc=${PIPESTATUS[1]}
+                if [ "$restore_rc" -ne 0 ]; then failed="$failed $db(restore)"; else ok=$((ok+1)); fi
+                rm -f "$dump"
+              done
+              echo "mysql mgmt migration complete ok=$ok failed=$failed"
+              [ -n "$failed" ] && exit 1

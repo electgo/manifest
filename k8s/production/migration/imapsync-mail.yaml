@@ -1,0 +1,74 @@
+# Per-mailbox imapsync from JagoanHosting Modoboa (143.electgo-dev.com source)
+# to EKS Mailu Dovecot (mail.mail.svc.cluster.local target).
+#
+# Run once per mailbox by templating MBOX, SRC_PASS, DST_PASS.
+# Example:
+#   for box in postmaster yohannes notifier; do
+#     kubectl -n mail create -f - <<EOF
+#     apiVersion: batch/v1
+#     kind: Job
+#     metadata:
+#       generateName: imapsync-${box}-
+#     spec:
+#       template:
+#         spec: $(yq '.spec.template.spec' k8s/production/migration/imapsync-mail.yaml | \
+#                   sed "s|__MBOX__|${box}|; s|__SRC_PASS__|<src>|; s|__DST_PASS__|<dst>|")
+#     EOF
+#   done
+#
+# Or use the helper script in k8s/production/migration/imapsync-run.sh (writes Jobs from a CSV
+# of mailbox,src_password,dst_password tuples).
+#
+# Network requirement: source Modoboa IMAP must reach EKS NAT GW or be reachable from EKS pods.
+# Pod egresses via NAT GW (15.232.19.74); JagoanHosting must allow that IP to 143/993.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: imapsync-TEMPLATE
+  namespace: mail
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 7200
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: imapsync
+          image: gilleslamiral/imapsync:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MBOX
+              value: "__MBOX__"
+            - name: SRC_HOST
+              value: "mail.electgo-dev.com"
+            - name: SRC_PORT
+              value: "993"
+            - name: SRC_PASS
+              value: "__SRC_PASS__"
+            - name: DST_HOST
+              value: "front.mail.svc.cluster.local"
+            - name: DST_PORT
+              value: "993"
+            - name: DST_PASS
+              value: "__DST_PASS__"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              imapsync \
+                --host1 "$SRC_HOST" --port1 "$SRC_PORT" --ssl1 \
+                --user1 "${MBOX}@electgo-dev.com" --password1 "$SRC_PASS" \
+                --host2 "$DST_HOST" --port2 "$DST_PORT" --ssl2 \
+                --user2 "${MBOX}@electgo-dev.com" --password2 "$DST_PASS" \
+                --automap --addheader --useheader='Message-Id' \
+                --syncinternaldates --skipsize --no-modulesversion \
+                --logfile "/tmp/imapsync-${MBOX}.log"
+              echo "DONE ${MBOX} at $(date -u +%FT%TZ)"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi

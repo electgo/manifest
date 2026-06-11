@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: electgo-backroom-fe-dev
+  namespace: argocd
+spec:
+  destination:
+    namespace: electgo-backroom-fe
+    server: https://10.20.17.100:6443
+  project: marketplace
+  source:
+    helm:
+      parameters:
+      - name: env.config.VITE_ELECTGO_API_PRODUCT
+        value: http://electgo-be-product.electgo-be-product.svc.cluster.local:3200
+      - name: env.config.VITE_ELECTGO_API_SALES_BE
+        value: http://electgo-be-sales.electgo-be-sales.svc.cluster.local:3201
+      - name: env.config.VITE_ELECTGO_API_SELLER_BE
+        value: http://electgo-seller-center-be-dev.electgo-seller-center.svc.cluster.local:3031
+      - name: env.config.VITE_ELECTGO_API_SELLER_PRODUCT
+        value: http://electgo-seller-center-be-dev.electgo-seller-center.svc.cluster.local:3031
+      - name: env.config.VITE_ELECTGO_API_USER
+        value: http://electgo-be-user.marketplace.svc.cluster.local:3030
+      - name: env.config.VITE_ELECTGO_API_UTILS
+        value: http://electgo-be-utils.electgo-be-utils.svc.cluster.local:3202
+      - name: env.config.VITE_ELECTGO_BUCKET_URL
+        value: https://electgo.com/media/catalog/product
+      - name: image.tag
+        value: prod-latest
+      - name: secret.create
+        value: 'false'
+      - name: imageCredentials.create
+        value: 'false'
+      valueFiles:
+      - values-dev.yaml
+    path: helm/electgo-backroom-fe
+    repoURL: https://github.com/electgo/electgo-backroom-fe
+    targetRevision: develop
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: false
+      selfHeal: false

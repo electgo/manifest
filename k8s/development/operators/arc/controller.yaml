@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-controller-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    namespace: arc-systems
+    server: https://10.20.17.103:6443
+  source:
+    repoURL: ghcr.io/actions/actions-runner-controller-charts
+    chart: gha-runner-scale-set-controller
+    targetRevision: 0.9.3
+    helm:
+      releaseName: arc
+      # CRDs applied out-of-band with kubectl --server-side; the chart's CRDs
+      # exceed the 262144-byte annotation limit on client-side apply.
+      skipCrds: true
+      values: |
+        replicaCount: 1
+        nodeSelector:
+          kubernetes.io/arch: amd64
+          kubernetes.io/os: linux
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        flags:
+          logLevel: info
+          logFormat: json
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+      limit: 5
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - SkipDryRunOnMissingResource=true

@@ -1,0 +1,6 @@
+server: https://k3s.int.electgo.com:6443
+token: ${K3S_NODE_TOKEN}
+kubelet-arg:
+  - system-reserved=memory=128Mi
+  - kube-reserved=memory=128Mi
+  - eviction-hard=memory.available<256Mi

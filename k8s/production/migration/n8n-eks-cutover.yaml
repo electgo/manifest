@@ -1,0 +1,126 @@
+# One-shot Job: dump n8n_production from Lightsail RDS PG and restore into
+# EKS Percona PG `n8n` database. Source schema is n8n 2.6.3; the EKS n8n
+# 2.19.3 deployment will TypeORM-migrate the schema upward on next restart.
+#
+# Pre-req: Lightsail n8n.service is stopped (no in-flight writes during dump).
+# Run:     kubectl apply -f k8s/production/migration/n8n-eks-cutover.yaml
+# Watch:   kubectl -n database logs -f job/n8n-eks-cutover
+# Cleanup: Job auto-deletes after ttlSecondsAfterFinished (24h)
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: n8n-eks-cutover-source
+  namespace: database
+type: Opaque
+stringData:
+  src-host: "ls-d7f0eb15926c1e43e66aa3386c30ac683e54d2f4.clc58bmqhdz9.ap-southeast-1.rds.amazonaws.com"
+  src-user: "n8n_master"
+  src-db: "n8n_production"
+  src-password: "9irGTjR0COWxPp048OBZggrP"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: n8n-eks-cutover
+  namespace: database
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: postgres:18-alpine
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+              ephemeral-storage: "5Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+              ephemeral-storage: "10Gi"
+          env:
+            - name: SRC_HOST
+              valueFrom: { secretKeyRef: { name: n8n-eks-cutover-source, key: src-host } }
+            - name: SRC_USER
+              valueFrom: { secretKeyRef: { name: n8n-eks-cutover-source, key: src-user } }
+            - name: SRC_DB
+              valueFrom: { secretKeyRef: { name: n8n-eks-cutover-source, key: src-db } }
+            - name: PGPASSWORD_SRC
+              valueFrom: { secretKeyRef: { name: n8n-eks-cutover-source, key: src-password } }
+            - name: TGT_HOST
+              valueFrom: { secretKeyRef: { name: postgres-main-pg-db-pguser-n8n, key: host } }
+            - name: TGT_USER
+              valueFrom: { secretKeyRef: { name: postgres-main-pg-db-pguser-n8n, key: user } }
+            - name: TGT_DB
+              valueFrom: { secretKeyRef: { name: postgres-main-pg-db-pguser-n8n, key: dbname } }
+            - name: TGT_PORT
+              valueFrom: { secretKeyRef: { name: postgres-main-pg-db-pguser-n8n, key: port } }
+            - name: PGPASSWORD_TGT
+              valueFrom: { secretKeyRef: { name: postgres-main-pg-db-pguser-n8n, key: password } }
+            # Percona PG superuser — needed to DROP/CREATE schema in `n8n` DB,
+            # since the n8n user is not schema owner. After CREATE SCHEMA
+            # AUTHORIZATION n8n, n8n becomes owner and pg_restore works.
+            - name: SUPER_USER
+              valueFrom: { secretKeyRef: { name: postgres-main-pg-db-pguser-postgres-main-pg-db, key: user } }
+            - name: PGPASSWORD_SUPER
+              valueFrom: { secretKeyRef: { name: postgres-main-pg-db-pguser-postgres-main-pg-db, key: password } }
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "================ Phase A: pg_dump from Lightsail RDS ================"
+              echo "Source: $SRC_USER@$SRC_HOST/$SRC_DB"
+              # Lightsail RDS requires SSL — sslmode=require ensures encrypted transport.
+              PGSSLMODE=require PGPASSWORD="$PGPASSWORD_SRC" pg_dump \
+                -Fc --no-owner --no-privileges --verbose \
+                -h "$SRC_HOST" -U "$SRC_USER" -d "$SRC_DB" \
+                -f /tmp/n8n.dump 2>/tmp/dump.err
+              DUMP_RC=$?
+              echo "pg_dump exit=$DUMP_RC"
+              if [ "$DUMP_RC" -ne 0 ]; then
+                echo "DUMP STDERR:"; cat /tmp/dump.err
+                exit 1
+              fi
+              ls -lh /tmp/n8n.dump
+              echo "Dump table-of-contents head:"
+              pg_restore -l /tmp/n8n.dump 2>/dev/null | head -20
+
+              echo "================ Phase B: wipe target schema (as n8n owner) ================"
+              echo "Target: $TGT_USER@$TGT_HOST/$TGT_DB (port $TGT_PORT)"
+              # n8n now owns schema public (set via ALTER SCHEMA bootstrap), so n8n can drop+recreate.
+              export PGSSLMODE=require
+              PGPASSWORD="$PGPASSWORD_TGT" psql -h "$TGT_HOST" -p "$TGT_PORT" -U "$TGT_USER" -d "$TGT_DB" \
+                -v ON_ERROR_STOP=1 \
+                -c "DROP SCHEMA IF EXISTS public CASCADE;" \
+                -c "CREATE SCHEMA public AUTHORIZATION \"$TGT_USER\";" \
+                -c "GRANT ALL ON SCHEMA public TO \"$TGT_USER\";" \
+                -c "GRANT USAGE ON SCHEMA public TO PUBLIC;"
+
+              echo "================ Phase C: pg_restore into target (as n8n user) ================"
+              # --no-owner: ignore OWNER directives, restored objects owned by connecting user (n8n).
+              # Non-zero exit common (e.g., comments on schema public) — proceed and validate.
+              PGPASSWORD="$PGPASSWORD_TGT" pg_restore --no-owner --no-privileges --no-acl --verbose \
+                -h "$TGT_HOST" -p "$TGT_PORT" -U "$TGT_USER" -d "$TGT_DB" \
+                /tmp/n8n.dump 2>/tmp/restore.err || true
+              RESTORE_RC=$?
+              echo "pg_restore exit=$RESTORE_RC (non-zero often normal due to comments/warnings)"
+              echo "RESTORE STDERR (tail):"; tail -40 /tmp/restore.err
+
+              echo "================ Phase D: validate ================"
+              PGPASSWORD="$PGPASSWORD_TGT" psql -h "$TGT_HOST" -p "$TGT_PORT" -U "$TGT_USER" -d "$TGT_DB" -c "
+                SELECT
+                  (SELECT COUNT(*) FROM workflow_entity) AS workflows,
+                  (SELECT COUNT(*) FROM workflow_entity WHERE active) AS active_workflows,
+                  (SELECT COUNT(*) FROM credentials_entity) AS credentials,
+                  (SELECT COUNT(*) FROM execution_entity) AS executions,
+                  (SELECT COUNT(*) FROM \"user\") AS users;
+              "
+              PGPASSWORD="$PGPASSWORD_TGT" psql -h "$TGT_HOST" -p "$TGT_PORT" -U "$TGT_USER" -d "$TGT_DB" -c "\dt" | head -30
+
+              rm -f /tmp/n8n.dump /tmp/dump.err /tmp/restore.err
+              echo "================ MIGRATION DONE ================"

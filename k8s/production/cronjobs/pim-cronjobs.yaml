@@ -1,0 +1,3386 @@
+# Generated from ElectgoAWS-v2 (52.220.241.68) ubuntu crontab — Asia/Singapore
+# Targets EKS PIM Helm release. suspend=false. Co-located with Deployment via podAffinity (RWO on EFS).
+# Excludes pim-magento-cloud-tunnel (handled by k8s/magento-cloud-production-database-tunnel-pod.yaml).
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-bot-report-sync-session
+  namespace: pim-chatbot
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+    legacy.note: "pim-chatbot/spark report:sync-session"
+spec:
+  suspend: false
+  schedule: "0 22 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-bot-report-sync-session
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-chatbot
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: bot-report-sync-session
+            image: zot.electgo.com/pim-chatbot:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/spark", "spark", "report:sync-session"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-chatbot-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-chatbot-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-chatbot-exported
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-email-schedule-check
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+    legacy.note: "every 2 min"
+spec:
+  suspend: false
+  schedule: "*/2 * * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-email-schedule-check
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: email-schedule-check
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "schedule", "emailschedulecheck"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-syncprodtable-default
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "3 */2 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-syncprodtable-default
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: syncprodtable-default
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "schedule", "syncprodtable", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-syncprodtable-indo
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "13 */2 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-syncprodtable-indo
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: syncprodtable-indo
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "schedule", "syncprodtable", "indo"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-stock-getstock-prod
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+    legacy.note: "Legacy had duplicate 5 */2 + */10; kept */10 only"
+spec:
+  suspend: false
+  schedule: "*/10 * * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-stock-getstock-prod
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: stock-getstock-prod
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "stock", "actgetstock", "production"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-supplier-stock-elmecon-indo
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "*/30 * * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-supplier-stock-elmecon-indo
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: supplier-stock-elmecon-indo
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "supplier", "getsupplierstock", "elmecon", "indo", "1", "0"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-supplier-stock-elmecon-indo-full
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "3 3 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-supplier-stock-elmecon-indo-full
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: supplier-stock-elmecon-indo-full
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "supplier", "getsupplierstock", "elmecon", "indo", "1", "1"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-supplier-stock-omron
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "1 6,12 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-supplier-stock-omron
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: supplier-stock-omron
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "supplier", "getsupplierstock", "omron", "default", "1", "1"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-supplier-price-elmecon
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "6 3 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-supplier-price-elmecon
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: supplier-price-elmecon
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "supplier", "getsupplierprice", "elmecon_price", "indo", "1", "1"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-punchout-catalog-default
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "4 4 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-punchout-catalog-default
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: punchout-catalog-default
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "schedule", "syncpunchoutcatalog", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-punchout-contract-lind
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "14 4 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-punchout-contract-lind
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: punchout-contract-lind
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "schedule", "syncpunchoutcontract", "LIND"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-punchout-contract-arkm
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "15 4 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-punchout-contract-arkm
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: punchout-contract-arkm
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "schedule", "syncpunchoutcontract", "ARKM"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-wishlist-mail-restock
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+    legacy.note: "Magic token hardcoded — TODO move to Secret"
+spec:
+  suspend: false
+  schedule: "10 9 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-wishlist-mail-restock
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: wishlist-mail-restock
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "wishlist", "actmailrestock", "forcethequickbrownfoxjumps0verthelazydog"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-magento-sync-wishlist
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+    legacy.note: "Cluster start 02:01/14:01"
+spec:
+  suspend: false
+  schedule: "1 2,14 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-magento-sync-wishlist
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: magento-sync-wishlist
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "magentoreport", "syncwishlist", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-magento-sync-contacttodd
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+    legacy.note: "Cluster"
+spec:
+  suspend: false
+  schedule: "1 2,14 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-magento-sync-contacttodd
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: magento-sync-contacttodd
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "schedule", "syncmgcontacttodd"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-magento-sync-enquirytodd
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+    legacy.note: "Cluster"
+spec:
+  suspend: false
+  schedule: "1 2,14 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-magento-sync-enquirytodd
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: magento-sync-enquirytodd
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "schedule", "syncmgenquirytodd"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-magento-sync-flexibleforms
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+    legacy.note: "Cluster"
+spec:
+  suspend: false
+  schedule: "1 2,14 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-magento-sync-flexibleforms
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: magento-sync-flexibleforms
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "magentoreport", "syncflexibleforms", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-magento-report-sales
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "2 2,14 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-magento-report-sales
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: magento-report-sales
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "magentoreport", "syncmgreportsales", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-magento-report-customer
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "3 2,14 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-magento-report-customer
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: magento-report-customer
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "magentoreport", "syncmgreportcustomer", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-magento-report-saleskam
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "4 2,14 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-magento-report-saleskam
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: magento-report-saleskam
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "magentoreport", "syncmgreportsaleskam", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-magento-report-company
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "5 2,14 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-magento-report-company
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: magento-report-company
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "magentoreport", "syncmgreportcompany", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-magento-synccustomurl-default
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "6 2,14 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-magento-synccustomurl-default
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: magento-synccustomurl-default
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "schedule", "synccustomurl", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-magento-synccustomurl-indo
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "6 2,14 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-magento-synccustomurl-indo
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: magento-synccustomurl-indo
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "schedule", "synccustomurl", "indo"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-dotdigital-chat-default
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "33 5,13 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-dotdigital-chat-default
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: dotdigital-chat-default
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "dotdigital", "syncddchat", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-dotdigital-chat-indo
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "34 5,13 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-dotdigital-chat-indo
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: dotdigital-chat-indo
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "dotdigital", "syncddchat", "indo"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-dotdigital-webinsight-default
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "35 5,13 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-dotdigital-webinsight-default
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: dotdigital-webinsight-default
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "dotdigital", "syncddwebinsight", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-dotdigital-webinsight-indo
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "36 5,13 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-dotdigital-webinsight-indo
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: dotdigital-webinsight-indo
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "dotdigital", "syncddwebinsight", "indo"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-dotdigital-contact-default
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "37 5,13 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-dotdigital-contact-default
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: dotdigital-contact-default
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "dotdigital", "syncddcontact", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-dotdigital-contact-indo
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "38 5,13 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-dotdigital-contact-indo
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: dotdigital-contact-indo
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "dotdigital", "syncddcontact", "indo"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-dotdigital-cart-default
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "39 5,13 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-dotdigital-cart-default
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: dotdigital-cart-default
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "dotdigital", "syncddcart", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-dotdigital-cart-indo
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "40 5,13 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-dotdigital-cart-indo
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: dotdigital-cart-indo
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "dotdigital", "syncddcart", "indo"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-dotdigital-b2binsight-default
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "41 5,13 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-dotdigital-b2binsight-default
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: dotdigital-b2binsight-default
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "dotdigital", "syncddb2binsight", "default"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-dotdigital-b2binsight-indo
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "42 5,13 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-dotdigital-b2binsight-indo
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: dotdigital-b2binsight-indo
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "dotdigital", "syncddb2binsight", "indo"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-wishlist-abandon-check
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "43 5,13 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-wishlist-abandon-check
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: wishlist-abandon-check
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "wishlist", "actabandoncheck"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-matomo-sync-traffic
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+    legacy.note: "Legacy 'piwik' namespace, points to Matomo"
+spec:
+  suspend: false
+  schedule: "45 5 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-matomo-sync-traffic
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: matomo-sync-traffic
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "piwik", "syncmatomotraffic"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-matomo-sync-performance
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+    legacy.note: "Legacy 'piwik' namespace"
+spec:
+  suspend: false
+  schedule: "46 5 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-matomo-sync-performance
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: matomo-sync-performance
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "piwik", "syncmatomoperformance"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-facebook-syncdata-dm
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "5 4 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-facebook-syncdata-dm
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: facebook-syncdata-dm
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "facebook", "syncdata", "catalog_dm"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pim-facebook-syncdata-dm-indo
+  namespace: pim-master
+  labels:
+    app.kubernetes.io/part-of: pim
+    app.kubernetes.io/managed-by: k8s-cronjob-migration
+    legacy-source: electgoaws-v2
+  annotations:
+    legacy.source: "ElectgoAWS-v2:/var/spool/cron/crontabs/ubuntu"
+spec:
+  suspend: false
+  schedule: "6 4 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: pim
+            app.kubernetes.io/cron: pim-facebook-syncdata-dm-indo
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: worker
+          securityContext:
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: pim-master
+                    app.kubernetes.io/name: pim
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: facebook-syncdata-dm-indo
+            image: zot.electgo.com/pim-master:production
+            imagePullPolicy: IfNotPresent
+            command: ["php"]
+            args: ["/var/www/html/public/index.php", "facebook", "syncdata", "catalog_dm_indo"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 33
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {cpu: 1000m, memory: 1Gi}
+            volumeMounts:
+            - name: env-file
+              mountPath: /var/www/html/.env
+              subPath: .env
+              readOnly: true
+            - name: writable
+              mountPath: /var/www/html/writable
+            - name: exported
+              mountPath: /var/www/html/public/exported
+            - name: media
+              mountPath: /var/www/html/public/media
+            - name: pdf
+              mountPath: /var/www/html/public/pdf
+          volumes:
+          - name: env-file
+            secret:
+              secretName: pim-master-env
+              items:
+              - key: .env
+                path: .env
+          - name: writable
+            persistentVolumeClaim:
+              claimName: pim-master-writable
+          - name: exported
+            persistentVolumeClaim:
+              claimName: pim-master-exported
+          - name: media
+            persistentVolumeClaim:
+              claimName: pim-master-media
+          - name: pdf
+            persistentVolumeClaim:
+              claimName: pim-master-pdf
+

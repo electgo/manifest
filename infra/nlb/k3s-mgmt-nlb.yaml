@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Internal NLB for ElectGo management K3s API.
+Parameters:
+  VpcId:
+    Type: String
+    Default: vpc-0197654adba9e146a
+  ManagementSecurityGroupId:
+    Type: String
+    Default: sg-07dd21f853f46a3de
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: subnet-0b17ba41bff723d0e,subnet-0d57dda4057a60476,subnet-0b8318fe2eaa2285b
+  MgmtControlInstanceId:
+    Type: String
+    Default: i-063a3cf3cb14c36b9
+  MgmtGitopsInstanceId:
+    Type: String
+    Description: Instance ID for electgo-mgmt-gitops.
+  MgmtSystemInstanceId:
+    Type: String
+    Description: Instance ID for electgo-mgmt-system.
+  PrivateHostedZoneId:
+    Type: String
+    Description: Route53 private hosted zone ID for int.electgo.com or electgo.com.
+Resources:
+  K3sMgmtApiLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: k3s-mgmt-api
+      Type: network
+      Scheme: internal
+      SecurityGroups:
+        - !Ref ManagementSecurityGroupId
+      Subnets: !Ref SubnetIds
+      Tags:
+        - Key: Project
+          Value: electgo
+        - Key: Name
+          Value: k3s-mgmt-api
+  K3sMgmtApiTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: k3s-mgmt-api-tg
+      VpcId: !Ref VpcId
+      Protocol: TCP
+      Port: 6443
+      TargetType: instance
+      HealthCheckProtocol: TCP
+      HealthCheckPort: "6443"
+      Tags:
+        - Key: Project
+          Value: electgo
+  K3sMgmtApiListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref K3sMgmtApiLoadBalancer
+      Port: 6443
+      Protocol: TCP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref K3sMgmtApiTargetGroup
+  K3sMgmtControlTarget:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroupAttachment
+    Properties:
+      TargetGroupArn: !Ref K3sMgmtApiTargetGroup
+      TargetId: !Ref MgmtControlInstanceId
+      Port: 6443
+  K3sMgmtGitopsTarget:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroupAttachment
+    Properties:
+      TargetGroupArn: !Ref K3sMgmtApiTargetGroup
+      TargetId: !Ref MgmtGitopsInstanceId
+      Port: 6443
+  K3sMgmtSystemTarget:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroupAttachment
+    Properties:
+      TargetGroupArn: !Ref K3sMgmtApiTargetGroup
+      TargetId: !Ref MgmtSystemInstanceId
+      Port: 6443
+  K3sMgmtApiDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref PrivateHostedZoneId
+      Name: k3s.int.electgo.com.
+      Type: CNAME
+      TTL: 60
+      ResourceRecords:
+        - !GetAtt K3sMgmtApiLoadBalancer.DNSName
+Outputs:
+  LoadBalancerArn:
+    Value: !Ref K3sMgmtApiLoadBalancer
+  LoadBalancerDnsName:
+    Value: !GetAtt K3sMgmtApiLoadBalancer.DNSName
+  TargetGroupArn:
+    Value: !Ref K3sMgmtApiTargetGroup

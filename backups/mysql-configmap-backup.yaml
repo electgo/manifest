@@ -1,0 +1,210 @@
+apiVersion: v1
+data:
+  00-basic.cnf: |
+    # Basic configuration.
+    # Do not edit.
+    [mysqld]
+    plugin_load_add=auth_socket.so
+    loose_auth_socket=FORCE_PLUS_PERMANENT
+    skip_log_error
+    log_error_verbosity=3
+  01-group_replication.cnf: |
+    # GR and replication related options
+    # Do not edit.
+    [mysqld]
+    log_bin=mysql-main
+    enforce_gtid_consistency=ON
+    gtid_mode=ON
+    skip_replica_start=1
+  02-ssl.cnf: |
+    # SSL configurations
+    # Do not edit.
+    [mysqld]
+    # ssl-ca=/etc/mysql-ssl/ca/
+    # ssl-crl=/etc/mysql-ssl/ca/crl.pem
+    # ssl-cert=/etc/mysql-ssl/key/tls.crt
+    # ssl-key=/etc/mysql-ssl/key/tls.key
+
+    loose_group_replication_recovery_use_ssl=1
+    # loose_group_replication_recovery_ssl_verify_server_cert=1
+
+    # loose_group_replication_recovery_ssl_ca=/etc/mysql-ssl/ca/
+    ## loose_group_replication_recovery_ssl_crl=/etc/mysql-ssl/ca/crl.pem
+    # loose_group_replication_recovery_ssl_cert=/etc/mysql-ssl/key/tls.crt
+    # loose_group_replication_recovery_ssl_key=/etc/mysql-ssl/key/tls.key
+  99-extra.cnf: |
+    # Additional user configurations taken from spec.mycnf in InnoDBCluster.
+    # Do not edit directly.
+  initdb-localroot.sql: |
+    set sql_log_bin=0;
+    # Create socket authenticated localroot@localhost account
+    CREATE USER localroot@localhost IDENTIFIED WITH auth_socket AS 'mysql';
+    GRANT ALL ON *.* TO localroot@localhost WITH GRANT OPTION;
+    GRANT PROXY ON ''@'' TO localroot@localhost WITH GRANT OPTION;
+    # Drop the default account created by the docker image
+    DROP USER IF EXISTS healthchecker@localhost;
+    # Create account for liveness probe
+    CREATE USER mysqlhealthchecker@localhost IDENTIFIED WITH auth_socket AS 'mysql';
+    set sql_log_bin=1;
+  livenessprobe.sh: |
+    #!/bin/bash
+    # Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+
+    # Insert 1 success every this amount of failures
+    # (assumes successThreshold is > 1)
+    max_failures_during_progress=$1
+
+    # Ping the server to see if it's up
+    mysqladmin -umysqlhealthchecker ping
+    # If it's up, we succeed
+    if [ $? -eq 0 ]; then
+      exit 0
+    fi
+
+    if [ -z $max_failures_during_progress ]; then
+      exit 1
+    fi
+
+    # If the init/startup/InnoDB recovery is still ongoing, we're
+    # not succeeded nor failed yet, so keep failing and getting time
+    # extensions until it succeeds.
+    # We currently rely on the server to exit/abort if the init/startup fails,
+    # but ideally there would be a way to check whether the server is
+    # still making progress and not just stuck waiting on a frozen networked
+    # volume, for example.
+
+    if [ -f /tmp/fail-counter ]; then
+      fail_count=$(($(cat /tmp/fail-counter) + 1))
+    else
+      fail_count=1
+    fi
+
+    if [ $fail_count -gt $max_failures_during_progress ]; then
+      # Report success to reset the failure counter upstream and get
+      # a time extension
+      rm -f /tmp/fail-counter
+      exit 0
+    else
+      # Update the failure counter and fail out
+      echo $fail_count > /tmp/fail-counter
+      exit 1
+    fi
+  my.cnf.in: |
+    # Server identity related options (not shared across instances).
+    # Do not edit.
+    [mysqld]
+    server_id=@@SERVER_ID@@
+    report_host=@@HOSTNAME@@
+    datadir=/var/lib/mysql
+    loose_mysqlx_socket=/var/run/mysqld/mysqlx.sock
+    socket=/var/run/mysqld/mysql.sock
+    local-infile=1
+
+    [mysql]
+    socket=/var/run/mysqld/mysql.sock
+
+    [mysqladmin]
+    socket=/var/run/mysqld/mysql.sock
+
+    !includedir /etc/my.cnf.d
+  readinessprobe.sh: |
+    #!/bin/bash
+    # Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+
+    # Once the container is ready, it's always ready.
+    if [ -f /tmp/mysql-ready ]; then
+      exit 0
+    fi
+
+    # Ping server to see if it is ready
+    if mysqladmin -umysqlhealthchecker ping; then
+      touch /tmp/mysql-ready
+      exit 0
+    else
+      exit 1
+    fi
+  router-entrypoint-run.sh.tpl: "#!/bin/bash\n# Copyright (c) 2018, 2024, Oracle and/or
+    its affiliates.\n#\n# This program is free software; you can redistribute it and/or
+    modify\n# it under the terms of the GNU General Public License as published by\n#
+    the Free Software Foundation; version 2 of the License.\n#\n# This program is
+    distributed in the hope that it will be useful,\n# but WITHOUT ANY WARRANTY; without
+    even the implied warranty of\n# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    \ See the\n# GNU General Public License for more details.\n#\n# You should have
+    received a copy of the GNU General Public License\n# along with this program;
+    if not, write to the Free Software\n# Foundation, Inc., 51 Franklin St, Fifth
+    Floor, Boston, MA  02110-1301 USA\nset -e\n\nif [[ -n $MYSQL_USER_FILE && -f $MYSQL_USER_FILE
+    ]]; then\n    MYSQL_USER=$(cat $MYSQL_USER_FILE)\nfi\n\nif [ \"$1\" = 'mysqlrouter'
+    ]; then\n    if [[ -z $MYSQL_HOST || -z $MYSQL_PORT || -z $MYSQL_USER || (-z $MYSQL_PASSWORD
+    && -z $MYSQL_PASSWORD_FILE) ]]; then\n\t    echo \"We require all of\"\n\t    echo
+    \"    MYSQL_HOST\"\n\t    echo \"    MYSQL_PORT\"\n\t    echo \"    MYSQL_USER
+    or MYSQL_USER_FILE\"\n\t    echo \"    MYSQL_PASSWORD or MYSQL_PASSWORD_FILE\"\n\t
+    \   echo \"to be set.\"\n\t    echo \"In addition you can set\"\n\t    echo \"
+    \   MYSQL_INNODB_CLUSTER_MEMBERS\"\n\t    echo \"    MYSQL_CREATE_ROUTER_USER\"\n\t
+    \   echo \"    MYSQL_ROUTER_BOOTSTRAP_EXTRA_OPTIONS\"\n\t    echo \"Exiting.\"\n\t
+    \   exit 1\n    fi\n\n    PASSFILE=$(mktemp)\n    if  [[ -n $MYSQL_PASSWORD_FILE
+    && -f \"$MYSQL_PASSWORD_FILE\" ]]; then\n        cat \"$MYSQL_PASSWORD_FILE\"
+    > \"$PASSFILE\"\n        echo \"\" >> \"$PASSFILE\"\n    else\n        echo \"$MYSQL_PASSWORD\"
+    > \"$PASSFILE\"\n    fi\n    if [ -z $MYSQL_CREATE_ROUTER_USER ]; then\n      if
+    \ [[ -n $MYSQL_PASSWORD_FILE && -f \"$MYSQL_PASSWORD_FILE\" ]]; then\n        cat
+    \"$MYSQL_PASSWORD_FILE\" >> \"$PASSFILE\"\n        echo \"\" >> \"$PASSFILE\"\n
+    \     else\n        echo \"$MYSQL_PASSWORD\" >> \"$PASSFILE\"\n      fi\n      MYSQL_CREATE_ROUTER_USER=1\n
+    \     echo \"[Entrypoint] MYSQL_CREATE_ROUTER_USER is not set, Router will generate
+    a new account to be used at runtime.\"\n      echo \"[Entrypoint] Set it to 0
+    to reuse $MYSQL_USER instead.\"\n    elif [ \"$MYSQL_CREATE_ROUTER_USER\" = \"0\"
+    ]; then\n      if  [[ -n $MYSQL_PASSWORD_FILE && -f \"$MYSQL_PASSWORD_FILE\" ]];
+    then\n        cat \"$MYSQL_PASSWORD_FILE\" >> \"$PASSFILE\"\n        echo \"\"
+    >> \"$PASSFILE\"\n      else\n        echo \"$MYSQL_PASSWORD\" >> \"$PASSFILE\"\n
+    \     fi\n      echo \"[Entrypoint] MYSQL_CREATE_ROUTER_USER is 0, Router will
+    reuse $MYSQL_USER account at runtime\"\n    else\n      echo \"[Entrypoint] MYSQL_CREATE_ROUTER_USER
+    is not 0, Router will generate a new account to be used at runtime\"\n    fi\n\n
+    \   if  [[ -n $MYSQL_PASSWORD_FILE && -f \"$MYSQL_PASSWORD_FILE\" ]]; then\n      DEFAULTS_EXTRA_FILE=$(mktemp)\n
+    \     cat >\"$DEFAULTS_EXTRA_FILE\" <<EOF\n[client]\npassword=\"$(cat $MYSQL_PASSWORD_FILE)\"\nEOF\n
+    \   else\n      DEFAULTS_EXTRA_FILE=$(mktemp)\n      cat >\"$DEFAULTS_EXTRA_FILE\"
+    <<EOF\n[client]\npassword=\"$MYSQL_PASSWORD\"\nEOF\n    fi\n    unset MYSQL_PASSWORD\n\n
+    \   max_tries=12\n    attempt_num=0\n    until (echo > \"/dev/tcp/$MYSQL_HOST/$MYSQL_PORT\")
+    >/dev/null 2>&1; do\n      echo \"[Entrypoint] Waiting for mysql server $MYSQL_HOST
+    ($attempt_num/$max_tries)\"\n      sleep $(( attempt_num++ ))\n      if (( attempt_num
+    == max_tries )); then\n        exit 1\n      fi\n    done\n    echo \"[Entrypoint]
+    Succesfully contacted mysql server at $MYSQL_HOST:$MYSQL_PORT. Checking for cluster
+    state.\"\n    if ! [[ \"$(mysql --defaults-extra-file=\"$DEFAULTS_EXTRA_FILE\"
+    -u \"$MYSQL_USER\" -h \"$MYSQL_HOST\" -P \"$MYSQL_PORT\" -e \"show status;\" 2>
+    /dev/null)\" ]]; then\n      echo \"[Entrypoint] ERROR: Can not connect to database.
+    Exiting.\"\n      exit 1\n    fi\n    if [[ -n $MYSQL_INNODB_CLUSTER_MEMBERS ]];
+    then\n      attempt_num=0\n      echo $attempt_num\n      echo $max_tries\n      until
+    [ \"$(mysql --defaults-extra-file=\"$DEFAULTS_EXTRA_FILE\" -u \"$MYSQL_USER\"
+    -h \"$MYSQL_HOST\" -P \"$MYSQL_PORT\" -N performance_schema -e \"select count(MEMBER_STATE)
+    >= $MYSQL_INNODB_CLUSTER_MEMBERS from replication_group_members where MEMBER_STATE
+    = 'ONLINE';\" 2> /dev/null)\" -eq 1 ]; do\n             echo \"[Entrypoint] Waiting
+    for $MYSQL_INNODB_CLUSTER_MEMBERS cluster instances to become available via $MYSQL_HOST
+    ($attempt_num/$max_tries)\"\n             sleep $(( attempt_num++ ))\n             if
+    (( attempt_num == max_tries )); then\n                     exit 1\n             fi\n
+    \     done\n      echo \"[Entrypoint] Successfully contacted cluster with $MYSQL_INNODB_CLUSTER_MEMBERS
+    members. Bootstrapping.\"\n    fi\n    if [ $(id -u) = \"0\" ]; then\n      opt_user=--user=mysqlrouter\n
+    \   fi\n    if [ \"$MYSQL_CREATE_ROUTER_USER\" = \"0\" ]; then\n        echo \"[Entrypoint]
+    Succesfully contacted mysql server at $MYSQL_HOST. Trying to bootstrap reusing
+    account \\\"$MYSQL_USER\\\".\"\n        mysqlrouter --bootstrap \"$MYSQL_USER@$MYSQL_HOST:$MYSQL_PORT\"
+    --directory /tmp/mysqlrouter --force --account-create=never --account=$MYSQL_USER
+    $opt_user $MYSQL_ROUTER_BOOTSTRAP_EXTRA_OPTIONS < \"$PASSFILE\" || exit 1\n    else\n
+    \       echo \"[Entrypoint] Succesfully contacted mysql server at $MYSQL_HOST.
+    Trying to bootstrap.\"\n        mysqlrouter --bootstrap \"$MYSQL_USER@$MYSQL_HOST:$MYSQL_PORT\"
+    --directory /tmp/mysqlrouter --force $opt_user $MYSQL_ROUTER_BOOTSTRAP_EXTRA_OPTIONS
+    < \"$PASSFILE\" || exit 1\n    fi\n\n    rm \"$DEFAULTS_EXTRA_FILE\"\n\n    sed
+    -i -e 's/logging_folder=.*$/logging_folder=/' /tmp/mysqlrouter/mysqlrouter.conf\n
+    \   echo \"[Entrypoint] Starting mysql-router.\"\n    exec \"$@\" --config /tmp/mysqlrouter/mysqlrouter.conf\n\n
+    \   rm $PASSFILE\nelse\n    exec \"$@\"\nfi\n"
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2026-03-06T15:52:21Z"
+  labels:
+    objectset.rio.cattle.io/hash: 10b16d3d6d0e71582d01ecdb1a3d7d0e0af3eb16
+  name: mysql-main-initconf
+  namespace: database
+  ownerReferences:
+  - apiVersion: mysql.oracle.com/v2
+    blockOwnerDeletion: true
+    controller: true
+    kind: InnoDBCluster
+    name: mysql-main
+    uid: 64ef5e7a-0c9f-45ad-ac57-ba0c0cd367c0
+  resourceVersion: "65347"
+  uid: ea29d33f-e32a-4369-b923-323b6d7c1d45

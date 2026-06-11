@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pim-partners-punchout-client
+  namespace: argocd
+spec:
+  project: development
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: pim-partners-punchout-client-secret
+      namespace: pim-partners-punchout-client
+      jsonPointers:
+        - /data
+        - /stringData
+  source:
+    repoURL: https://github.com/electgo/pim-partners-punchoutclient.git
+    targetRevision: development
+    path: helm/pim-partners-punchout-client
+    helm:
+      valueFiles:
+        - values-dev.yaml
+  destination:
+    name: k3s-development
+    namespace: pim-partners-punchout-client
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

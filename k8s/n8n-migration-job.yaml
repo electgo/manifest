@@ -1,0 +1,159 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: n8n-migration
+  namespace: database
+spec:
+  activeDeadlineSeconds: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+      - name: pre-migration-check
+        # Source: Database-2 PostgreSQL 17.6 — client must match major version
+        image: postgres:17.6
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Checking Lightsail PostgreSQL (n8n DB) connectivity..."
+          PGPASSWORD=${N8N_PASSWORD} psql -h ${N8N_HOST} -p ${N8N_PORT} \
+            -U ${N8N_USER} -d n8n_production -c "SELECT 'Lightsail OK' as status, version()" 2>&1
+
+          echo "Checking K3s PostgreSQL connectivity..."
+          PGPASSWORD=${TARGET_PASSWORD} psql -h ${TARGET_HOST} \
+            -U ${TARGET_USER} -d postgres -c "SELECT 'K3s OK' as status, version()" 2>&1
+
+          echo "All connectivity checks passed!"
+        env:
+        - name: N8N_HOST
+          value: "ls-d7f0eb15926c1e43e66aa3386c30ac683e54d2f4.clc58bmqhdz9.ap-southeast-1.rds.amazonaws.com"
+        - name: N8N_PORT
+          value: "5432"
+        - name: N8N_USER
+          value: "n8n_master"
+        - name: N8N_PASSWORD
+          value: "9irGTjR0COWxPp048OBZggrP"
+        - name: TARGET_HOST
+          value: "postgres-main-rw.database.svc.cluster.local"
+        - name: TARGET_USER
+          value: "platform_user"
+        - name: TARGET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-main-user
+              key: password
+
+      containers:
+      - name: n8n-migrate
+        image: postgres:17.6
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting n8n database migration from Lightsail to K3s..."
+          echo "Source: ${N8N_HOST}:${N8N_PORT}"
+          echo "Target: ${TARGET_HOST}:5432"
+          echo "Database: n8n_production"
+          echo "Timestamp: $(date)"
+          echo "========================================"
+
+          echo "Phase 1: Dumping n8n_production from Lightsail..."
+          PGPASSWORD=${N8N_PASSWORD} pg_dump \
+            -h ${N8N_HOST} -p ${N8N_PORT} \
+            -U ${N8N_USER} \
+            -d n8n_production \
+            --no-owner --no-privileges \
+            --clean --if-exists \
+            -Fc \
+            -f /tmp/n8n_backup.dump \
+            2>&1
+
+          DUMP_STATUS=$?
+          if [ $DUMP_STATUS -ne 0 ]; then
+            echo "ERROR: pg_dump failed with exit code $DUMP_STATUS"
+            exit 1
+          fi
+
+          DUMP_SIZE=$(du -h /tmp/n8n_backup.dump 2>/dev/null | cut -f1)
+          echo "Phase 1 complete. Dump size: $DUMP_SIZE"
+
+          echo "Phase 2: Creating n8n user and database on K3s (using platform_user with CREATEROLE)..."
+          # platform_user now has CREATEROLE, so it can create n8n_master
+          PGPASSWORD=${TARGET_PASSWORD} psql \
+            -h ${TARGET_HOST} -U ${TARGET_USER} -d postgres \
+            -c "CREATE ROLE n8n_master WITH LOGIN PASSWORD '9irGTjR0COWxPp048OBZggrP';" 2>&1 || echo "Role may already exist"
+
+          PGPASSWORD=${TARGET_PASSWORD} psql \
+            -h ${TARGET_HOST} -U ${TARGET_USER} -d postgres \
+            -c "GRANT n8n_master TO platform_user;" 2>&1 || echo "Grant may already exist"
+
+          PGPASSWORD=${TARGET_PASSWORD} psql \
+            -h ${TARGET_HOST} -U n8n_master -d n8n_production \
+            -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO n8n_master;" 2>&1 || echo "Tables grant (n8n_master needs connect first)"
+
+          PGPASSWORD=${TARGET_PASSWORD} psql \
+            -h ${TARGET_HOST} -U ${TARGET_USER} -d n8n_production \
+            -c "ALTER DATABASE n8n_production OWNER TO n8n_master;" 2>&1 || echo "DB owner change (if exists)"
+
+          echo "Phase 3: Restoring n8n_production to K3s..."
+          PGPASSWORD=${TARGET_PASSWORD} pg_restore \
+            -h ${TARGET_HOST} \
+            -U n8n_master \
+            -d n8n_production \
+            --no-owner --no-privileges \
+            --clean --if-exists \
+            /tmp/n8n_backup.dump \
+            2>&1
+
+          RESTORE_STATUS=$?
+          if [ $RESTORE_STATUS -ne 0 ]; then
+            echo "WARNING: pg_restore completed with exit code $RESTORE_STATUS (non-zero is normal for --clean)"
+          fi
+
+          echo "Phase 4: Validating n8n database..."
+          PGPASSWORD=${TARGET_PASSWORD} psql \
+            -h ${TARGET_HOST} -U n8n_master -d n8n_production \
+            -c "SELECT schemaname, COUNT(*) as table_count FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') GROUP BY schemaname" 2>&1
+
+          PGPASSWORD=${TARGET_PASSWORD} psql \
+            -h ${TARGET_HOST} -U n8n_master -d n8n_production \
+            -c "SELECT COUNT(*) as workflow_count FROM workflow_entity;" 2>&1
+
+          PGPASSWORD=${TARGET_PASSWORD} psql \
+            -h ${TARGET_HOST} -U n8n_master -d n8n_production \
+            -c "SELECT COUNT(*) as credential_count FROM credentials_entity;" 2>&1
+
+          rm -f /tmp/n8n_backup.dump
+
+          echo ""
+          echo "========================================"
+          echo "n8n database migration completed!"
+          echo "Timestamp: $(date)"
+          echo "========================================"
+        env:
+        - name: N8N_HOST
+          value: "ls-d7f0eb15926c1e43e66aa3386c30ac683e54d2f4.clc58bmqhdz9.ap-southeast-1.rds.amazonaws.com"
+        - name: N8N_PORT
+          value: "5432"
+        - name: N8N_USER
+          value: "n8n_master"
+        - name: N8N_PASSWORD
+          value: "9irGTjR0COWxPp048OBZggrP"
+        - name: TARGET_HOST
+          value: "postgres-main-rw.database.svc.cluster.local"
+        - name: TARGET_USER
+          value: "platform_user"
+        - name: TARGET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-main-user
+              key: password
+  backoffLimit: 3

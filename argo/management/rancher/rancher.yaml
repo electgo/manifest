@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://releases.rancher.com/server-charts/alpha
     chart: rancher
-    targetRevision: 2.15.0-alpha8
+    targetRevision: 2.15.0-alpha9
     helm:
       releaseName: rancher
       values: |

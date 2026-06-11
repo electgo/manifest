@@ -1,0 +1,171 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: matomo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: matomo-db
+  namespace: matomo
+type: Opaque
+stringData:
+  MATOMO_DATABASE_HOST: "mysql-main-mysql-0.mysql-main-mysql.database.svc.cluster.local"
+  MATOMO_DATABASE_ADAPTER: "mysql"
+  MATOMO_DATABASE_TABLES_PREFIX: ""
+  MATOMO_DATABASE_USERNAME: "matomo_user"
+  MATOMO_DATABASE_PASSWORD: "6ZsRjOkvPQyyA4b3!"
+  MATOMO_DATABASE_DBNAME: "matomo"
+  MATOMO_GENERAL_SALT: "a2350dc98fbe7248810e08252c4d34a427e9f98679687ead812f7afa2f8d1c72"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: matomo-config
+  namespace: matomo
+data:
+  MATOMO_GENERAL_FORCE_SSL: "1"
+  MATOMO_GENERAL_TRUSTED_PROXIES: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matomo
+  namespace: matomo
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+  selector:
+    app: matomo
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: matomo
+  namespace: matomo
+  annotations:
+    haproxy.org/forwarded-for: "true"
+    haproxy.org/forwarded-proto: "true"
+    # Traefik/ACME TLS is terminated at ALB; keep HAProxy pass-through settings.
+    haproxy.org/ssl-redirect: "false"
+    haproxy.org/timeout-client: "600s"
+    haproxy.org/timeout-server: "600s"
+    haproxy.org/load-balance: "roundrobin"
+spec:
+  ingressClassName: haproxy
+  tls:
+    - hosts:
+        - track.electgo.com
+      secretName: track-electgo-com-tls
+  rules:
+    - host: track.electgo.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: matomo
+                port:
+                  name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matomo
+  namespace: matomo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: matomo
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: matomo
+    spec:
+      securityContext:
+        fsGroup: 33
+      initContainers:
+        - name: warmup
+          image: matomo:5.11.0-apache
+          command:
+            - sh
+            - -c
+            - |
+              until php -r "new PDO('mysql:host=' . getenv('MATOMO_DATABASE_HOST') . ';dbname=' . getenv('MATOMO_DATABASE_DBNAME'), getenv('MATOMO_DATABASE_USERNAME'), getenv('MATOMO_DATABASE_PASSWORD'));" 2>/dev/null; do
+                echo waiting for db
+                sleep 2
+              done
+              mkdir -p /var/www/html/config
+              cat > /var/www/html/config/config.ini.php <<EOF
+              ; <?php exit; ?> DO NOT REMOVE THIS LINE
+              [database]
+              host = "${MATOMO_DATABASE_HOST}"
+              username = "${MATOMO_DATABASE_USERNAME}"
+              password = "${MATOMO_DATABASE_PASSWORD}"
+              dbname = "${MATOMO_DATABASE_DBNAME}"
+              tables_prefix = "${MATOMO_DATABASE_TABLES_PREFIX}"
+              adapter = "MYSQLI"
+              charset = "utf8mb4"
+
+              [General]
+              salt = "${MATOMO_GENERAL_SALT}"
+              trusted_hosts[] = "track.electgo.com"
+              force_ssl = 1
+              assume_secure_protocol = 1
+              proxy_client_headers[] = HTTP_X_FORWARDED_FOR
+              proxy_host_headers[] = HTTP_X_FORWARDED_HOST
+              trusted_proxies[] = "10.0.0.0/8"
+              trusted_proxies[] = "172.16.0.0/12"
+              trusted_proxies[] = "192.168.0.0/16"
+              EOF
+              chown www-data:www-data /var/www/html/config/config.ini.php
+              chmod 0640 /var/www/html/config/config.ini.php
+          envFrom:
+            - secretRef:
+                name: matomo-db
+          volumeMounts:
+            - name: data
+              mountPath: /var/www/html/config
+      containers:
+        - name: matomo
+          image: matomo:5.11.0-apache
+          ports:
+            - name: http
+              containerPort: 80
+          envFrom:
+            - secretRef:
+                name: matomo-db
+            - configMapRef:
+                name: matomo-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/www/html/config
+          readinessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+      volumes:
+        - name: data
+          emptyDir: {}

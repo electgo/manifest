@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pim-websocket-prod
+  namespace: argocd
+spec:
+  destination:
+    name: production
+    namespace: pim-websocket
+  project: product
+  source:
+    helm:
+      parameters:
+      - name: ingress.host
+        value: pim-websocket.electgo.com
+      - name: ingress.className
+        value: haproxy
+      releaseName: pim-websocket
+      valueFiles:
+      - values.yaml
+      - values-prod.yaml
+    path: deployments/helm
+    repoURL: https://github.com/electgo/pim-websocket
+    targetRevision: main
+  syncPolicy:
+    automated:
+      selfHeal: true

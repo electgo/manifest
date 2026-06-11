@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: electgo-seller-center-fe-dev
+  namespace: argocd
+spec:
+  destination:
+    namespace: electgo-seller-center
+    server: https://10.20.17.100:6443
+  project: marketplace
+  source:
+    helm:
+      parameters:
+      - name: env.config.ELECTGO_API_PRODUCT
+        value: http://electgo-be-product.electgo-be-product.svc.cluster.local:3200
+      - name: env.config.ELECTGO_API_SELLER_BE
+        value: http://electgo-seller-center-be-dev.electgo-seller-center.svc.cluster.local:3031
+      - name: env.config.VITE_ELECTGO_API_PRODUCT
+        value: http://electgo-be-product.electgo-be-product.svc.cluster.local:3200
+      - name: env.config.ELECTGO_API_SELLER_PRODUCT
+        value: http://electgo-be-product.electgo-be-product.svc.cluster.local:3200
+      - name: env.config.VITE_ELECTGO_API_SELLER_BE
+        value: http://electgo-seller-center-be-dev.electgo-seller-center.svc.cluster.local:3031
+      - name: env.config.VITE_SALES_URL
+        value: http://electgo-be-sales.electgo-be-sales.svc.cluster.local:3201
+      - name: env.config.VITE_USER_SERVICE_URL
+        value: http://electgo-be-user.marketplace.svc.cluster.local:3030
+      - name: replicaCount
+        value: '1'
+      - name: secret.create
+        value: 'false'
+      - name: imageCredentials.create
+        value: 'false'
+      valueFiles:
+      - values-dev.yaml
+    path: helm/electgo-seller-center-fe
+    repoURL: https://github.com/electgo/electgo-seller-center-fe
+    targetRevision: develop
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: false
+      selfHeal: false

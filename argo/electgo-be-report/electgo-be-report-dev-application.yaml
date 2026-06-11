@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: electgo-be-report-dev
+  namespace: argocd
+spec:
+  project: marketplace
+  source:
+    repoURL: https://github.com/electgo/electgo-be-report
+    targetRevision: develop
+    path: helm/electgo-be-report
+    helm:
+      valueFiles:
+        - values-dev.yaml
+      parameters:
+        - name: namespace.name
+          value: electgo-be-report
+        - name: replicaCount
+          value: "1"
+        - name: env.config.NODE_ENV
+          value: development
+        - name: secret.create
+          value: "false"
+        - name: imageCredentials.create
+          value: "false"
+  destination:
+    server: https://10.20.17.100:6443
+    namespace: electgo-be-report
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: false
+      selfHeal: true

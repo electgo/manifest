@@ -1,0 +1,44 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaMirrorMaker2
+metadata:
+  name: kafka-main-mm2
+  namespace: database
+spec:
+  version: 3.9.0
+  replicas: 1
+  connectCluster: target
+  clusters:
+  - alias: source
+    bootstrapServers: 52.74.158.86:9092
+    config:
+      config.storage.replication.factor: -1
+      offset.storage.replication.factor: -1
+      status.storage.replication.factor: -1
+  - alias: target
+    bootstrapServers: kafka-main-kafka-bootstrap.database.svc.cluster.local:9092
+    config:
+      config.storage.replication.factor: 1
+      offset.storage.replication.factor: 1
+      status.storage.replication.factor: 1
+  mirrors:
+  - sourceCluster: source
+    targetCluster: target
+    sourceConnector:
+      tasksMax: 1
+      config:
+        replication.factor: 1
+        offset-syncs.topic.replication.factor: 1
+        sync.topic.acls.enabled: "false"
+        replication.policy.class: "org.apache.kafka.connect.mirror.IdentityReplicationPolicy"
+        refresh.topics.interval.seconds: 60
+    heartbeatConnector:
+      config:
+        heartbeats.topic.replication.factor: 1
+    checkpointConnector:
+      config:
+        checkpoints.topic.replication.factor: 1
+        sync.group.offsets.enabled: "true"
+        emit.checkpoints.interval.seconds: 60
+        replication.policy.class: "org.apache.kafka.connect.mirror.IdentityReplicationPolicy"
+    topicsPattern: "invoice-created|order-created|quotation-.*|test-topic"
+    groupsPattern: ".*"

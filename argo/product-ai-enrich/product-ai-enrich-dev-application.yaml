@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: product-ai-enrich-dev
+  namespace: argocd
+spec:
+  project: product
+  source:
+    repoURL: https://github.com/electgo/product-ai-enrich
+    targetRevision: develop
+    path: helm/product-ai-enrich
+    helm:
+      valueFiles:
+        - values-dev.yaml
+  destination:
+    name: development
+    namespace: product-ai-enrich
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

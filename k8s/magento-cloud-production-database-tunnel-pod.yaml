@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: magento-cloud-production-database-tunnel
+  namespace: default
+  labels:
+    app.kubernetes.io/name: magento-cloud-production-database-tunnel
+    app.kubernetes.io/component: tunnel
+spec:
+  restartPolicy: Always
+  nodeName: electgo-dev-agent-1
+  hostNetwork: true
+  containers:
+    - name: tunnel
+      image: ubuntu:24.04
+      imagePullPolicy: IfNotPresent
+      command:
+        - /bin/sh
+        - -lc
+        - chroot /host sh -lc 'HOME=/root magento-cloud tunnel:single -g --port 30001 -e production -p r3ayyeegktiqs -r database'
+      securityContext:
+        privileged: true
+      volumeMounts:
+        - name: host-root
+          mountPath: /host
+  volumes:
+    - name: host-root
+      hostPath:
+        path: /
+        type: Directory

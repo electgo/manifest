@@ -1,0 +1,100 @@
+crVersion: "2.9.0"
+postgresVersion: 18
+
+instances:
+  - name: instance1
+    replicas: 1
+    dataVolumeClaimSpec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+      storageClassName: efs-postgres
+    resources:
+      requests:
+        cpu: 100m
+        memory: 900Mi
+      limits:
+        cpu: 1
+        memory: 1500Mi
+  - name: instance2
+    replicas: 1
+    dataVolumeClaimSpec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+      storageClassName: efs-postgres
+    resources:
+      requests:
+        cpu: 100m
+        memory: 900Mi
+      limits:
+        cpu: 1
+        memory: 1500Mi
+  - name: instance3
+    replicas: 1
+    dataVolumeClaimSpec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+      storageClassName: efs-postgres
+    resources:
+      requests:
+        cpu: 100m
+        memory: 900Mi
+      limits:
+        cpu: 1
+        memory: 1500Mi
+
+proxy:
+  pgBouncer:
+    replicas: 3
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        memory: 64Mi
+
+# Custom application users. Operator auto-creates each db, owns it by the named user,
+# and writes credentials to secret `<cluster>-pguser-<name>` (here `postgres-main-pg-db-pguser-n8n`).
+# Apply with: helm upgrade postgres-main percona/pg-db -n database -f k8s/production/databases/postgres-values.yaml
+users:
+  - name: n8n
+    databases:
+      - n8n
+    # PG 15+ revokes default CREATE on public from non-owners; n8n needs to create its
+    # own schema objects, so grant it explicitly.
+    grantPublicSchemaAccess: true
+  - name: mailu
+    databases:
+      - mailu
+      - mailu_roundcube
+    # Mailu admin + Roundcube both create their own schema objects.
+    grantPublicSchemaAccess: true
+  - name: zitadel
+    databases:
+      - zitadelv3
+    grantPublicSchemaAccess: true
+
+pmm:
+  enabled: false
+
+backups:
+  pgbackrest:
+    enabled: false
+    repoHost:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          memory: 128Mi
+
+standby:
+  enabled: false

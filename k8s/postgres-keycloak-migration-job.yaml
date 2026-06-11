@@ -1,0 +1,103 @@
+# Source: MongoDB_Dev (52.74.252.4) PostgreSQL 16.11 — keycloak database
+# keycloak DB owner: eluser, used by Keycloak 26.3.5 on DevelopmentServer
+# Target: postgres-main-rw (CNPG PG16.11)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-keycloak-migration
+  namespace: database
+spec:
+  activeDeadlineSeconds: 1800
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: postgres-migrate
+        image: postgres:16.11
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Migrating keycloak database from MongoDB_Dev PostgreSQL to K3s..."
+          echo "Source: ${SOURCE_HOST}:${SOURCE_PORT}"
+          echo "Target: postgres-main-rw.database.svc.cluster.local"
+          echo "Timestamp: $(date)"
+
+          TARGET_HOST="postgres-main-rw.database.svc.cluster.local"
+          mkdir -p /tmp/migration
+
+          echo "=== Dumping keycloak from source ==="
+          PGPASSWORD="${SOURCE_PASSWORD}" pg_dump \
+            -h "${SOURCE_HOST}" -p "${SOURCE_PORT}" \
+            -U "${SOURCE_USER}" -d keycloak \
+            --no-owner --no-privileges --clean --if-exists -Fc \
+            -f /tmp/migration/keycloak.dump 2>&1
+
+          if [ $? -ne 0 ]; then
+            echo "ERROR: pg_dump failed"
+            exit 1
+          fi
+          echo "Dump size: $(du -h /tmp/migration/keycloak.dump | cut -f1)"
+
+          echo "=== Creating keycloak database on target ==="
+          PGPASSWORD="${TARGET_PASSWORD}" psql \
+            -h "${TARGET_HOST}" -U "${TARGET_USER}" -d postgres \
+            -c "CREATE DATABASE keycloak" 2>&1 || true
+
+          echo "=== Restoring keycloak to K3s ==="
+          PGPASSWORD="${TARGET_PASSWORD}" pg_restore \
+            -h "${TARGET_HOST}" -U "${TARGET_USER}" -d keycloak \
+            --no-owner --no-privileges --clean --if-exists \
+            /tmp/migration/keycloak.dump 2>&1
+
+          echo "=== Validation ==="
+          PGPASSWORD="${TARGET_PASSWORD}" psql \
+            -h "${TARGET_HOST}" -U "${TARGET_USER}" -d keycloak \
+            -c "SELECT schemaname, COUNT(*) as tables FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') GROUP BY schemaname" 2>&1
+
+          SRC_COUNT=$(PGPASSWORD="${SOURCE_PASSWORD}" psql -h "${SOURCE_HOST}" -p "${SOURCE_PORT}" \
+            -U "${SOURCE_USER}" -d keycloak -t \
+            -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema')" 2>&1 | tr -d ' ')
+          TGT_COUNT=$(PGPASSWORD="${TARGET_PASSWORD}" psql -h "${TARGET_HOST}" \
+            -U "${TARGET_USER}" -d keycloak -t \
+            -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema')" 2>&1 | tr -d ' ')
+          echo "Table count — source: ${SRC_COUNT}, target: ${TGT_COUNT}"
+
+          rm -f /tmp/migration/keycloak.dump
+          echo "Keycloak migration complete!"
+        env:
+        - name: SOURCE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: postgres-keycloak-credentials
+              key: host
+        - name: SOURCE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: postgres-keycloak-credentials
+              key: port
+        - name: SOURCE_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-keycloak-credentials
+              key: username
+        - name: SOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-keycloak-credentials
+              key: password
+        - name: TARGET_USER
+          value: platform_user
+        - name: TARGET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-main-user
+              key: password
+  backoffLimit: 2

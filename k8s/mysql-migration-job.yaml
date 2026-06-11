@@ -1,0 +1,250 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mysql-migration
+  namespace: database
+spec:
+  activeDeadlineSeconds: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      volumes:
+      - name: migration-workdir
+        emptyDir: {}
+      initContainers:
+      - name: pre-migration-check
+        image: mysql:8.0.44
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -eu
+
+          echo "Checking Lightsail connectivity..."
+          MYSQL_PWD="${LIGHTSAIL_PASSWORD}" mysql -h "${LIGHTSAIL_ENDPOINT}" \
+            -u "${LIGHTSAIL_USER}" \
+            -e "SELECT 'Lightsail OK' as status, VERSION() as version"
+          
+          echo "Checking local MySQL connectivity..."
+          MYSQL_PWD="${LOCAL_PASSWORD}" mysql -h "${LOCAL_HOST}" -P 3306 \
+            -u "${LOCAL_USER}" \
+            -e "SELECT 'Local MySQL OK' as status, VERSION() as version"
+
+          echo "Checking source database inventory..."
+          DATABASES=$(MYSQL_PWD="${LIGHTSAIL_PASSWORD}" mysql -N -B \
+            -h "${LIGHTSAIL_ENDPOINT}" \
+            -u "${LIGHTSAIL_USER}" \
+            -e "SHOW DATABASES" | grep -v -E "^(information_schema|mysql|performance_schema|sys)$")
+          if [ -z "${DATABASES}" ]; then
+            echo "No migratable databases found on source."
+            exit 1
+          fi
+          echo "Databases found:"
+          echo "${DATABASES}"
+          
+          echo "All connectivity checks passed!"
+        env:
+        - name: LIGHTSAIL_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: mysql-credentials
+              key: lightsail-endpoint
+        - name: LIGHTSAIL_USER
+          valueFrom:
+            secretKeyRef:
+              name: mysql-credentials
+              key: lightsail-user
+        - name: LIGHTSAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-credentials
+              key: lightsail-password
+        - name: LOCAL_USER
+          value: root
+        - name: LOCAL_HOST
+          value: percona-mysql.database.svc.cluster.local
+        - name: LOCAL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-credentials
+              key: rootPassword
+
+      containers:
+      - name: mysql-migrate
+        image: mysql:8.0.44
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -eu
+
+          echo "Starting migration from Lightsail to K3s..."
+          echo "Source: ${LIGHTSAIL_ENDPOINT}"
+          echo "Target: ${LOCAL_HOST}:3306"
+          echo "Timestamp: $(date)"
+          echo "----------------------------------------"
+          
+          mkdir -p /work
+
+          echo "Phase 1: Discovering source databases..."
+          DATABASES=$(MYSQL_PWD="${LIGHTSAIL_PASSWORD}" mysql -N -B \
+            -h "${LIGHTSAIL_ENDPOINT}" \
+            -u "${LIGHTSAIL_USER}" \
+            -e "SHOW DATABASES" | grep -v -E "^(information_schema|mysql|performance_schema|sys)$")
+          if [ -z "${DATABASES}" ]; then
+            echo "No migratable databases found on source."
+            exit 1
+          fi
+          echo "${DATABASES}"
+          echo "----------------------------------------"
+
+          echo "Phase 2: Disabling read-only mode and tuning for import..."
+          MYSQL_PWD="${LOCAL_PASSWORD}" mysql -h "${LOCAL_HOST}" -P 3306 \
+            -u "${LOCAL_USER}" \
+            -e "SET GLOBAL super_read_only=OFF;
+                SET GLOBAL read_only=OFF;
+                SET GLOBAL max_allowed_packet=268435456;
+                SET GLOBAL net_buffer_length=16384;
+                SET GLOBAL wait_timeout=28800;
+                SET GLOBAL innodb_redo_log_capacity=4294967296;
+                SET GLOBAL innodb_buffer_pool_size=1073741824;
+                SET GLOBAL innodb_io_capacity=2000;
+                SET GLOBAL innodb_io_capacity_max=4000;
+                SET GLOBAL innodb_flush_log_at_trx_commit=0;
+                SET GLOBAL sync_binlog=0;
+                SET GLOBAL sql_mode=(REPLACE(REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''),'ONLY_FULL_GROUP_BY,',''));
+                SHOW VARIABLES LIKE '%read_only%';
+                SHOW VARIABLES LIKE 'innodb_redo_log_capacity';
+                SHOW VARIABLES LIKE 'sql_mode';" 2>&1
+
+          echo "Phase 3: Migrating databases one-by-one..."
+          FAILED_DBS=""
+          SUCCESS_COUNT=0
+
+          for DB in ${DATABASES}; do
+            echo "Migrating ${DB}..."
+            ERR_LOG="/work/${DB}.err"
+            DUMP_FILE="/work/${DB}.sql"
+            : > "${ERR_LOG}"
+
+            MYSQL_PWD="${LOCAL_PASSWORD}" mysql -h "${LOCAL_HOST}" -P 3306 \
+              -u "${LOCAL_USER}" \
+              -e "CREATE DATABASE IF NOT EXISTS \`${DB}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" >> "${ERR_LOG}" 2>&1
+
+            DUMP_CMD="MYSQL_PWD='${LIGHTSAIL_PASSWORD}' mysqldump -h '${LIGHTSAIL_ENDPOINT}' \
+              -u '${LIGHTSAIL_USER}' --databases '${DB}' \
+              --single-transaction --skip-lock-tables --set-gtid-purged=OFF \
+              --routines --triggers --events --hex-blob --no-tablespaces --column-statistics=0"
+
+            DUMP_OK=false
+            if MYSQL_PWD="${LIGHTSAIL_PASSWORD}" mysqldump -h "${LIGHTSAIL_ENDPOINT}" \
+              -u "${LIGHTSAIL_USER}" \
+              --databases "${DB}" \
+              --single-transaction \
+              --skip-lock-tables \
+              --set-gtid-purged=OFF \
+              --routines \
+              --triggers \
+              --events \
+              --hex-blob \
+              --no-tablespaces \
+              --column-statistics=0 \
+              > "${DUMP_FILE}" 2>> "${ERR_LOG}"; then
+              DUMP_OK=true
+            elif grep -qi "view" "${ERR_LOG}"; then
+              echo "View errors detected, retrying ${DB} excluding broken views..."
+              : > "${ERR_LOG}"
+              # Build --ignore-table flags for all views in this DB
+              IGNORE_VIEWS=""
+              while IFS= read -r view; do
+                [ -z "$view" ] && continue
+                IGNORE_VIEWS="${IGNORE_VIEWS} --ignore-table=${DB}.${view}"
+              done < <(MYSQL_PWD="${LIGHTSAIL_PASSWORD}" mysql -N -B \
+                -h "${LIGHTSAIL_ENDPOINT}" -u "${LIGHTSAIL_USER}" \
+                -e "SELECT table_name FROM information_schema.views WHERE table_schema='${DB}'" 2>/dev/null)
+              if MYSQL_PWD="${LIGHTSAIL_PASSWORD}" mysqldump -h "${LIGHTSAIL_ENDPOINT}" \
+                -u "${LIGHTSAIL_USER}" \
+                --databases "${DB}" \
+                --single-transaction \
+                --skip-lock-tables \
+                --set-gtid-purged=OFF \
+                --routines \
+                --triggers \
+                --events \
+                --hex-blob \
+                --no-tablespaces \
+                --column-statistics=0 \
+                ${IGNORE_VIEWS} \
+                > "${DUMP_FILE}" 2>> "${ERR_LOG}"; then
+                DUMP_OK=true
+                echo "  Retried without views: OK (views skipped: ${IGNORE_VIEWS})"
+              fi
+            fi
+
+            if ${DUMP_OK}; then
+              if MYSQL_PWD="${LOCAL_PASSWORD}" mysql -h "${LOCAL_HOST}" -P 3306 \
+                -u "${LOCAL_USER}" \
+                --force \
+                --max-allowed-packet=256M \
+                --net-buffer-length=16384 \
+                --connect-timeout=300 \
+                < "${DUMP_FILE}" >> "${ERR_LOG}" 2>&1; then
+                SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+                echo "Completed ${DB}"
+              else
+                FAILED_DBS="${FAILED_DBS} ${DB}"
+                echo "Restore failed for ${DB}. Last errors:"
+                tail -20 "${ERR_LOG}"
+              fi
+            else
+              FAILED_DBS="${FAILED_DBS} ${DB}"
+              echo "Dump failed for ${DB}. Last errors:"
+              tail -20 "${ERR_LOG}"
+            fi
+          done
+          
+          echo "----------------------------------------"
+          echo "Migration finished."
+          echo "Timestamp: $(date)"
+          echo "Successful databases: ${SUCCESS_COUNT}"
+          if [ -n "${FAILED_DBS}" ]; then
+            echo "Failed databases:${FAILED_DBS}"
+            exit 1
+          fi
+          echo "All discovered databases migrated successfully."
+        env:
+        - name: LIGHTSAIL_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: mysql-credentials
+              key: lightsail-endpoint
+        - name: LIGHTSAIL_USER
+          valueFrom:
+            secretKeyRef:
+              name: mysql-credentials
+              key: lightsail-user
+        - name: LIGHTSAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-credentials
+              key: lightsail-password
+        - name: LOCAL_USER
+          value: root
+        - name: LOCAL_HOST
+          value: percona-mysql.database.svc.cluster.local
+        - name: LOCAL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-credentials
+              key: rootPassword
+        volumeMounts:
+        - name: migration-workdir
+          mountPath: /work
+  backoffLimit: 3

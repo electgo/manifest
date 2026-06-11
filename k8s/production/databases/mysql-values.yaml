@@ -1,0 +1,48 @@
+nameOverride: mysql-main
+fullnameOverride: mysql-main
+
+crVersion: 1.0.0
+enableVolumeExpansion: true
+pause: false
+
+mysql:
+  size: 3
+  clusterType: group-replication
+  image:
+    repository: percona/percona-server
+    tag: 8.0.43-34.1
+  imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 200m
+      memory: 2Gi
+    limits:
+      cpu: 2
+      memory: 4Gi
+  volumeSpec:
+    pvc:
+      storageClassName: gp3-encrypted
+      resources:
+        requests:
+          storage: 60Gi
+
+proxy:
+  haproxy:
+    enabled: false
+    size: 0
+  router:
+    enabled: false
+    size: 0
+
+unsafeFlags:
+  proxy: true
+  proxySize: true
+  mysqlSize: true
+  orchestrator: true
+
+pmm:
+  enabled: false
+
+orchestrator:
+  enabled: false
+  size: 0

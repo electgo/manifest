@@ -1,0 +1,193 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: magento-cloud-production-database-tunnel
+  namespace: default
+  labels:
+    app.kubernetes.io/name: magento-cloud-production-database-tunnel
+    app.kubernetes.io/component: tunnel
+    magento-cloud/env: production
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: magento-cloud-production-database-tunnel
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: magento-cloud-production-database-tunnel
+        app.kubernetes.io/component: tunnel
+        magento-cloud/env: production
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        magento-cloud-cli: "true"
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: tunnel
+          image: public.ecr.aws/amazonlinux/amazonlinux:2023
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          ports:
+            - name: mysql
+              containerPort: 30001
+              protocol: TCP
+          command:
+            - /bin/sh
+            - -lc
+            - |
+              exec chroot /host /bin/sh -lc '
+                HOME=/root
+                export HOME
+                trap "magento-cloud tunnel:close -y --all >/dev/null 2>&1 || true; exit 0" TERM INT
+                while true; do
+                  magento-cloud tunnel:close -y -e production -p r3ayyeegktiqs >/dev/null 2>&1 || true
+                  echo "[tunnel] starting production:database on :30001"
+                  magento-cloud tunnel:single -g --port 30001 -e production -p r3ayyeegktiqs -r database
+                  rc=$?
+                  echo "[tunnel] exited rc=$rc — reconnecting in 5s"
+                  sleep 5
+                done
+              '
+          readinessProbe:
+            tcpSocket:
+              port: 30001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: magento-cloud-production-database
+  namespace: default
+  labels:
+    app.kubernetes.io/component: tunnel
+    magento-cloud/env: production
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: magento-cloud-production-database-tunnel
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 30001
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: magento-cloud-staging-database-tunnel
+  namespace: default
+  labels:
+    app.kubernetes.io/name: magento-cloud-staging-database-tunnel
+    app.kubernetes.io/component: tunnel
+    magento-cloud/env: staging
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: magento-cloud-staging-database-tunnel
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: magento-cloud-staging-database-tunnel
+        app.kubernetes.io/component: tunnel
+        magento-cloud/env: staging
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        magento-cloud-cli: "true"
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: tunnel
+          image: public.ecr.aws/amazonlinux/amazonlinux:2023
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          ports:
+            - name: mysql
+              containerPort: 30002
+              protocol: TCP
+          command:
+            - /bin/sh
+            - -lc
+            - |
+              exec chroot /host /bin/sh -lc '
+                HOME=/root
+                export HOME
+                trap "magento-cloud tunnel:close -y --all >/dev/null 2>&1 || true; exit 0" TERM INT
+                while true; do
+                  magento-cloud tunnel:close -y -e staging -p r3ayyeegktiqs >/dev/null 2>&1 || true
+                  echo "[tunnel] starting staging:database on :30002"
+                  magento-cloud tunnel:single -g --port 30002 -e staging -p r3ayyeegktiqs -r database
+                  rc=$?
+                  echo "[tunnel] exited rc=$rc — reconnecting in 5s"
+                  sleep 5
+                done
+              '
+          readinessProbe:
+            tcpSocket:
+              port: 30002
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: magento-cloud-staging-database
+  namespace: default
+  labels:
+    app.kubernetes.io/component: tunnel
+    magento-cloud/env: staging
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: magento-cloud-staging-database-tunnel
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 30002
+      protocol: TCP

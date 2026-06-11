@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-mongodbdev-migration-credentials
+  namespace: database
+type: Opaque
+stringData:
+  source-host: "52.74.252.4"
+  source-port: "5432"
+  source-user: "eluser"
+  source-password: "Migr8Pass2026!"
+  target-host: "postgres-main-pg-db-primary.database.svc.cluster.local"
+  target-user: "postgres"
+  target-password: "ElectGo2026Pg"
+  databases: "ai_enrichment keycloak sammy zitadelv3"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-mongodbdev-migration
+  namespace: database
+spec:
+  activeDeadlineSeconds: 7200
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: pg-migrate
+        image: postgres:18.3
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+            ephemeral-storage: 2Gi
+          limits:
+            cpu: 2
+            memory: 2Gi
+            ephemeral-storage: 5Gi
+        env:
+        - name: SRC_HOST
+          valueFrom: { secretKeyRef: { name: postgres-mongodbdev-migration-credentials, key: source-host } }
+        - name: SRC_PORT
+          valueFrom: { secretKeyRef: { name: postgres-mongodbdev-migration-credentials, key: source-port } }
+        - name: SRC_USER
+          valueFrom: { secretKeyRef: { name: postgres-mongodbdev-migration-credentials, key: source-user } }
+        - name: PGPASSWORD_SRC
+          valueFrom: { secretKeyRef: { name: postgres-mongodbdev-migration-credentials, key: source-password } }
+        - name: TGT_HOST
+          valueFrom: { secretKeyRef: { name: postgres-mongodbdev-migration-credentials, key: target-host } }
+        - name: TGT_USER
+          valueFrom: { secretKeyRef: { name: postgres-mongodbdev-migration-credentials, key: target-user } }
+        - name: PGPASSWORD_TGT
+          valueFrom: { secretKeyRef: { name: postgres-mongodbdev-migration-credentials, key: target-password } }
+        - name: DATABASES
+          valueFrom: { secretKeyRef: { name: postgres-mongodbdev-migration-credentials, key: databases } }
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -uo pipefail
+          echo "Source: $SRC_HOST:$SRC_PORT  Target: $TGT_HOST  DBs: $DATABASES"
+          FAILED=""; OK=0
+          for DB in $DATABASES; do
+            echo "============================="
+            echo "DUMP $DB at $(date)"
+            DUMP=/tmp/${DB}.sql.gz
+            PGPASSWORD="$PGPASSWORD_SRC" pg_dump -h "$SRC_HOST" -p "$SRC_PORT" -U "$SRC_USER" -d "$DB" \
+              --no-owner --no-privileges --if-exists --clean 2>/tmp/dump.err | gzip > "$DUMP"
+            DUMP_RC=${PIPESTATUS[0]}
+            SZ=$(du -h "$DUMP" | cut -f1)
+            echo "dump rc=$DUMP_RC size=$SZ"
+            if [ "$DUMP_RC" -ne 0 ]; then
+              echo "DUMP STDERR:"; cat /tmp/dump.err; FAILED="$FAILED $DB(dump)"; continue
+            fi
+            echo "CREATE DB on target if not exist"
+            PGPASSWORD="$PGPASSWORD_TGT" psql -h "$TGT_HOST" -U "$TGT_USER" -d postgres \
+              -tc "SELECT 1 FROM pg_database WHERE datname='$DB'" | grep -q 1 \
+              || PGPASSWORD="$PGPASSWORD_TGT" psql -h "$TGT_HOST" -U "$TGT_USER" -d postgres \
+                  -c "CREATE DATABASE \"$DB\""
+            echo "RESTORE $DB at $(date)"
+            zcat "$DUMP" | PGPASSWORD="$PGPASSWORD_TGT" psql -h "$TGT_HOST" -U "$TGT_USER" -d "$DB" \
+              -v ON_ERROR_STOP=0 2>/tmp/restore.err
+            REST_RC=${PIPESTATUS[1]}
+            echo "restore rc=$REST_RC"
+            if [ "$REST_RC" -ne 0 ]; then
+              echo "RESTORE STDERR (tail):"; tail -30 /tmp/restore.err
+              FAILED="$FAILED $DB(restore)"; continue
+            fi
+            SRC_TBL=$(PGPASSWORD="$PGPASSWORD_SRC" psql -h "$SRC_HOST" -p "$SRC_PORT" -U "$SRC_USER" -d "$DB" \
+              -tAc "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema')")
+            TGT_TBL=$(PGPASSWORD="$PGPASSWORD_TGT" psql -h "$TGT_HOST" -U "$TGT_USER" -d "$DB" \
+              -tAc "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema')")
+            echo "tables src=$SRC_TBL tgt=$TGT_TBL"
+            [ "$SRC_TBL" = "$TGT_TBL" ] || echo "WARN: $DB table count mismatch"
+            OK=$((OK+1))
+            rm -f "$DUMP"
+          done
+          echo "============================="
+          echo "Done at $(date). Success: $OK"
+          [ -n "$FAILED" ] && { echo "Failed:$FAILED"; exit 1; }
+          exit 0

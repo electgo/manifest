@@ -121,7 +121,7 @@ spec:
             - name: ELASTIC_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: elasticsearch-credentials
+                  name: elasticsearch
                   key: elastic-password
             - name: EGCHATBOT_USER
               value: "egchatbot_dev"

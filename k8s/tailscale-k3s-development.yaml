@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tailscale
+  namespace: headscale-vpn
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: headscale-k3s-development-secret
+  namespace: headscale-vpn
+type: Opaque
+stringData:
+  PREAUTH_KEY: hskey-auth-JiaWUsZsIRsL-TJYGA4CZ1AtbAdACppSv4YiSPKY-Nu7NeEomh_vKaqCeWQaxDBe_C9CtQd00G2KH
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: headscale-local-secret
+  namespace: headscale-vpn
+type: Opaque
+stringData:
+  PREAUTH_KEY: hskey-auth-jjRs0RfBRwQd-ZdBpTsxnmfBoTcmgLi1cMaNxWqUsm6kGkAOV8wkYIsb5knL1aEW0FvHqsKEQ1qV_
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: headscale-vpn
+  namespace: headscale-vpn
+  labels:
+    app: headscale-vpn
+spec:
+  selector:
+    matchLabels:
+      app: headscale-vpn
+  template:
+    metadata:
+      labels:
+        app: headscale-vpn
+    spec:
+      serviceAccountName: tailscale
+      hostNetwork: true
+      containers:
+        - name: tailscale
+          image: tailscale/tailscale:latest
+          imagePullPolicy: Always
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Starting tailscaled..."
+              tailscaled --state=dir:/var/lib/tailscale 2>&1 &
+              sleep 5
+              echo "Running tailscale up..."
+              tailscale up --login-server=https://headscale.electgo.com --auth-key="$PREAUTH_KEY" --hostname="$(hostname)" --advertise-routes="10.42.0.0/16,10.43.0.0/16,10.20.0.0/20" 2>&1
+              RESULT=$?
+              echo "tailscale up result: $RESULT"
+              if [ $RESULT -ne 0 ]; then
+                echo "Retrying with force-reauth..."
+                tailscale down 2>/dev/null || true
+                sleep 2
+                tailscale up --force-reauth --login-server=https://headscale.electgo.com --auth-key="$PREAUTH_KEY" --hostname="$(hostname)" --advertise-routes="10.42.0.0/16,10.43.0.0/16,10.20.0.0/20" 2>&1
+              fi
+              tail -f /dev/null
+          env:
+            - name: KUBELET_INO
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: PREAUTH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: headscale-k3s-development-secret
+                  key: PREAUTH_KEY
+            - name: HEADSCALE_URL
+              value: https://headscale.electgo.com
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+            privileged: true
+          volumeMounts:
+            - mountPath: /var/lib/tailscale
+              name: tailscale-state
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists
+        - effect: NoExecute
+          operator: Exists
+      volumes:
+        - emptyDir: {}
+          name: tailscale-state

@@ -1,0 +1,130 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redis-migration
+  namespace: database
+spec:
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+      - name: pre-migration-check
+        image: redis:7.0.15
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Checking Lightsail Redis connectivity..."
+          redis-cli -h ${SOURCE_HOST} -p ${SOURCE_PORT} -a ${SOURCE_PASSWORD} --no-auth-warning PING
+
+          echo "Checking K3s Redis connectivity..."
+          redis-cli -h ${TARGET_HOST} -p 6379 -a ${TARGET_PASSWORD} --no-auth-warning PING
+
+          echo "All connectivity checks passed!"
+        env:
+        - name: SOURCE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: redis-lightsail-credentials
+              key: host
+        - name: SOURCE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: redis-lightsail-credentials
+              key: port
+        - name: SOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-lightsail-credentials
+              key: password
+        - name: TARGET_HOST
+          value: redis-main.database.svc.cluster.local
+        - name: TARGET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: password
+
+      containers:
+      - name: redis-migrate
+        image: redis:7.0.15
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting Redis migration from Lightsail to K3s..."
+          echo "Source: ${SOURCE_HOST}:${SOURCE_PORT}"
+          echo "Target: ${TARGET_HOST}:6379"
+          echo "Timestamp: $(date)"
+          echo "========================================"
+
+          SRC="redis-cli -h ${SOURCE_HOST} -p ${SOURCE_PORT} -a ${SOURCE_PASSWORD} --no-auth-warning"
+          TGT="redis-cli -h ${TARGET_HOST} -p 6379 -a ${TARGET_PASSWORD} --no-auth-warning"
+
+          echo "Phase 1: Getting source key count and info..."
+          $SRC INFO keyspace
+          SOURCE_KEYS=$($SRC DBSIZE 2>/dev/null | awk '{print $NF}')
+          echo "Source keys: $SOURCE_KEYS"
+
+          echo "Phase 2: Migrating all keys..."
+          $SRC KEYS '*' | while read KEY; do
+            [ -z "$KEY" ] && continue
+            echo "Migrating key: $KEY"
+
+            TTL=$($SRC PTTL "$KEY")
+            TYPE=$($SRC TYPE "$KEY" | tr -d '[:space:]')
+
+            case "$TYPE" in
+              string)
+                VAL=$($SRC GET "$KEY")
+                if [ "$TTL" -gt 0 ]; then
+                  $TGT SET "$KEY" "$VAL" PX "$TTL"
+                else
+                  $TGT SET "$KEY" "$VAL"
+                fi
+                ;;
+              *)
+                echo "Unsupported type $TYPE for key $KEY, using MIGRATE..."
+                $SRC MIGRATE ${TARGET_HOST} 6379 "$KEY" 0 5000 COPY AUTH ${TARGET_PASSWORD} 2>&1
+                ;;
+            esac
+          done
+
+          echo "========================================"
+          echo "Phase 3: Validating migration..."
+          echo "Source:"
+          $SRC INFO keyspace
+          echo "Target:"
+          $TGT INFO keyspace
+
+          TARGET_KEYS=$($TGT DBSIZE 2>/dev/null | awk '{print $NF}')
+          echo "Source: $SOURCE_KEYS keys, Target: $TARGET_KEYS keys"
+
+          echo "========================================"
+          echo "Migration completed!"
+          echo "Timestamp: $(date)"
+        env:
+        - name: SOURCE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: redis-lightsail-credentials
+              key: host
+        - name: SOURCE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: redis-lightsail-credentials
+              key: port
+        - name: SOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-lightsail-credentials
+              key: password
+        - name: TARGET_HOST
+          value: redis-main.database.svc.cluster.local
+        - name: TARGET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: password
+  backoffLimit: 3

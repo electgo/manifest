@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pim-sku-finder-dev
+  namespace: argocd
+spec:
+  project: product
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/template/spec/nodeSelector
+  source:
+    repoURL: https://github.com/electgo/pim-sku-finder.git
+    targetRevision: develop
+    path: deployments/helm
+    helm:
+      valueFiles:
+        - values-dev.yaml
+      parameters:
+        - name: secret.manage
+          value: "false"
+        - name: resources.requests.memory
+          value: "64Mi"
+        - name: resources.requests.cpu
+          value: "25m"
+        - name: ingress.className
+          value: "haproxy"
+        - name: ingress.id.tlsSecretName
+          value: "sku-finder-dev-tls"
+        - name: ingress.sg.tlsSecretName
+          value: "sku-finder-dev-tls"
+        - name: config.dbNameSg
+          value: "pim_master"
+        - name: config.dbNameId
+          value: "pim_indo"
+        - name: nodeSelector.node-role
+          value: "worker"
+        - name: nodeSelector.workload
+          value: "apps"
+  destination:
+    name: development
+    namespace: pim-sku-finder
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

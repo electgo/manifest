@@ -16,6 +16,11 @@ spec:
           prometheusSpec:
             nodeSelector:
               workload: observe
+            resources:
+              requests:
+                memory: 1536Mi
+              limits:
+                memory: 2560Mi
             storageSpec:
               volumeClaimTemplate:
                 spec:
@@ -23,6 +28,19 @@ spec:
                   resources:
                     requests:
                       storage: 50Gi
+        # apiserver/etcd histogram buckets = ~47% of all series (190k/404k) on a 4G node
+        kubeApiServer:
+          serviceMonitor:
+            metricRelabelings:
+              - action: drop
+                sourceLabels: [__name__]
+                regex: (apiserver_request_duration_seconds_bucket|apiserver_request_sli_duration_seconds_bucket|apiserver_request_body_size_bytes_bucket|apiserver_watch_list_duration_seconds_bucket|apiserver_response_sizes_bucket|etcd_request_duration_seconds_bucket)
+        kubeEtcd:
+          serviceMonitor:
+            metricRelabelings:
+              - action: drop
+                sourceLabels: [__name__]
+                regex: etcd_request_duration_seconds_bucket
         grafana:
           nodeSelector:
             workload: data
@@ -45,6 +63,73 @@ spec:
                   isDefault: true
                   jsonData:
                     timeInterval: "15s"
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+              traefik.ingress.kubernetes.io/router.tls: "true"
+            hosts:
+              - grafana.electgo.com
+            tls:
+              - secretName: grafana-electgo-com-tls
+                hosts:
+                  - grafana.electgo.com
+          grafana.ini:
+            server:
+              root_url: https://grafana.electgo.com
+              serve_from_sub_path: false
+        kube-state-metrics:
+          rbac:
+            extraRules:
+              - apiGroups: ["management.cattle.io"]
+                resources: ["clusters"]
+                verbs: ["list", "watch"]
+          customResourceState:
+            enabled: true
+            config:
+              kind: CustomResourceStateMetrics
+              spec:
+                resources:
+                  - groupVersionKind:
+                      group: management.cattle.io
+                      version: v3
+                      kind: Cluster
+                    labelsFromPath:
+                      cluster_id: [metadata, name]
+                      cluster_name: [spec, displayName]
+                    metrics:
+                      - name: rancher_cluster_condition
+                        help: Rancher cluster status conditions (1=True, 0=False)
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, conditions]
+                            labelsFromPath:
+                              condition: [type]
+                            valueFrom: [status]
+        additionalPrometheusRulesMap:
+          rancher-downstream:
+            groups:
+              - name: rancher.downstream
+                rules:
+                  - alert: RancherDownstreamClusterNotReady
+                    expr: kube_customresource_rancher_cluster_condition{condition="Ready"} == 0
+                    for: 10m
+                    labels:
+                      severity: critical
+                    annotations:
+                      summary: 'Rancher downstream cluster {{ $labels.cluster_name }} not Ready'
+                      description: 'Cluster {{ $labels.cluster_name }} ({{ $labels.cluster_id }}) Ready=False for 10m. Check cattle-cluster-agent connectivity (DNS rancher.electgo.com, wss /v3/connect).'
+                  - alert: RancherDownstreamClusterMetricAbsent
+                    expr: absent(kube_customresource_rancher_cluster_condition{condition="Ready"})
+                    for: 15m
+                    labels:
+                      severity: warning
+                    annotations:
+                      summary: 'Rancher cluster condition metric absent'
+                      description: 'kube-state-metrics customResourceState for management.cattle.io clusters not reporting. Alerting on downstream disconnect is blind.'
         alertmanager:
           alertmanagerSpec:
             nodeSelector:
@@ -56,6 +141,19 @@ spec:
                   resources:
                     requests:
                       storage: 5Gi
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+              traefik.ingress.kubernetes.io/router.tls: "true"
+            hosts:
+              - alertmanager.electgo.com
+            tls:
+              - secretName: alertmanager-electgo-com-tls
+                hosts:
+                  - alertmanager.electgo.com
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

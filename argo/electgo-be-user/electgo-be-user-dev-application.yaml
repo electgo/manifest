@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: electgo-be-user-dev
+  namespace: argocd
+spec:
+  project: marketplace
+  source:
+    repoURL: https://github.com/electgo/electgo-be-user
+    targetRevision: develop
+    path: helm/electgo-be-user
+    helm:
+      releaseName: electgo-be-user
+      valueFiles:
+        - values-dev.yaml
+      parameters:
+        - name: replicaCount
+          value: "1"
+        - name: nodeSelector.workload
+          value: chatbot
+        - name: ingress.host
+          value: be-user.dev.electgo.com
+        - name: ingress.tls.enabled
+          value: "false"
+        - name: ingress.className
+          value: haproxy
+        - name: namespace.name
+          value: electgo-be-user
+        - name: revisionHistoryLimit
+          value: "3"
+        - name: secret.create
+          value: "false"
+        - name: imageCredentials.create
+          value: "false"
+        - name: zitadelKeyFile.enabled
+          value: "true"
+        - name: zitadelKeyFile.existingSecret
+          value: electgo-be-user-zitadel-key
+  destination:
+    name: development
+    namespace: electgo-be-user
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

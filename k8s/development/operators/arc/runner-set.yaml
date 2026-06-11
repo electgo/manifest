@@ -1,0 +1,167 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-runner-set-k3s-amd64
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    namespace: arc-runners
+    server: https://10.20.17.103:6443
+  source:
+    repoURL: ghcr.io/actions/actions-runner-controller-charts
+    chart: gha-runner-scale-set
+    targetRevision: 0.9.3
+    helm:
+      releaseName: k3s-amd64
+      values: |
+        # Pre-reqs (out-of-band):
+        #   kubectl -n arc-runners create secret generic gh-app-secret \
+        #     --from-literal=github_app_id=<APP_ID> \
+        #     --from-literal=github_app_installation_id=<INSTALL_ID> \
+        #     --from-file=github_app_private_key=app-key.pem
+        #   kubectl -n arc-runners create sa arc-runner-sa
+        #   kubectl create clusterrolebinding arc-runner-view \
+        #     --clusterrole=view \
+        #     --serviceaccount=arc-runners:arc-runner-sa
+        #   # copy registry creds from old ns
+        #   kubectl -n github-runner get secret registry-docker-config -o yaml \
+        #     | sed 's/namespace: github-runner/namespace: arc-runners/' \
+        #     | kubectl apply -f -
+        githubConfigUrl: https://github.com/electgo
+        githubConfigSecret: gh-app-secret
+        runnerScaleSetName: k3s-amd64
+        minRunners: 0
+        # Capped at 1: 2-node schedulable cluster (server is tainted control-plane
+        # only) can't handle concurrent rootless BuildKit + node-local image cache
+        # (DiskPressure evictions + Insufficient cpu/mem at 2 builds). Bump after
+        # adding dedicated build nodes or external buildkit.
+        maxRunners: 1
+        runnerGroup: default
+        # Explicit pointer avoids chart's `lookup` call which fails inside
+        # ArgoCD repo-server (no RBAC to read deployments at template time).
+        controllerServiceAccount:
+          namespace: arc-systems
+          name: arc-gha-rs-controller
+        containerMode:
+          type: ""
+        template:
+          metadata:
+            annotations:
+              # Ubuntu 24.04 (k3s nodes) restricts unprivileged user namespaces
+              # under the default AppArmor profile; rootless BuildKit needs
+              # Unconfined to mount-rshare its rootfs. ARC CRD strips the v1.30+
+              # securityContext.appArmorProfile field, so use the legacy
+              # per-container annotation. Paired with
+              # kernel.apparmor_restrict_unprivileged_userns=0 on the host
+              # (/etc/sysctl.d/99-rootless-buildkit.conf).
+              container.apparmor.security.beta.kubernetes.io/buildkitd: unconfined
+          spec:
+            serviceAccountName: arc-runner-sa
+            imagePullSecrets:
+              - name: registry-docker-config
+            nodeSelector:
+              kubernetes.io/arch: amd64
+              kubernetes.io/os: linux
+            terminationGracePeriodSeconds: 120
+            securityContext:
+              fsGroup: 1001
+            initContainers:
+              - name: buildctl-init
+                image: moby/buildkit:v0.13.2-rootless
+                command:
+                  - sh
+                  - -c
+                  - cp /usr/bin/buildctl /shared/buildctl && chmod +x /shared/buildctl
+                volumeMounts:
+                  - name: buildctl-bin
+                    mountPath: /shared
+            containers:
+              - name: runner
+                image: ghcr.io/actions/actions-runner:2.334.0
+                command: ["/home/runner/run.sh"]
+                env:
+                  - name: BUILDKIT_HOST
+                    value: tcp://127.0.0.1:1234
+                  - name: DOCKER_CONFIG
+                    value: /home/runner/.docker
+                volumeMounts:
+                  - name: work
+                    mountPath: /home/runner/_work
+                  - name: buildctl-bin
+                    mountPath: /usr/local/bin/buildctl
+                    subPath: buildctl
+                  - name: docker-config
+                    mountPath: /home/runner/.docker
+                    readOnly: true
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    cpu: "1"
+                    memory: 1Gi
+              - name: buildkitd
+                image: moby/buildkit:v0.13.2-rootless
+                args:
+                  - --addr
+                  - tcp://127.0.0.1:1234
+                  - --oci-worker-no-process-sandbox
+                readinessProbe:
+                  exec:
+                    command:
+                      - buildctl
+                      - --addr
+                      - tcp://127.0.0.1:1234
+                      - debug
+                      - workers
+                  periodSeconds: 10
+                securityContext:
+                  runAsUser: 1000
+                  runAsGroup: 1000
+                  seccompProfile:
+                    type: Unconfined
+                volumeMounts:
+                  - name: buildkit-state
+                    mountPath: /home/user/.local/share/buildkit
+                  - name: docker-config
+                    mountPath: /home/user/.docker/config.json
+                    subPath: config.json
+                    readOnly: true
+                resources:
+                  requests:
+                    cpu: 200m
+                    memory: 512Mi
+                  limits:
+                    cpu: "2"
+                    memory: 2Gi
+            volumes:
+              - name: work
+                emptyDir: {}
+              - name: buildkit-state
+                emptyDir: {}
+              - name: buildctl-bin
+                emptyDir: {}
+              - name: docker-config
+                secret:
+                  secretName: registry-docker-config
+                  items:
+                    - key: .dockerconfigjson
+                      path: config.json
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+      limit: 5
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - SkipDryRunOnMissingResource=true

@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-tracking-credentials
+  namespace: database
+type: Opaque
+stringData:
+  source-host: "13.228.20.249"
+  source-user: "matomo_user"
+  source-password: "6ZsRjOkvPQyyA4b3!"
+  target-host: "mysql-main-mysql-0.mysql-main-mysql.database.svc.cluster.local"
+  target-user: "root"
+  target-password: "ElectGo2026Mysql"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mysql-tracking-migration
+  namespace: database
+spec:
+  activeDeadlineSeconds: 7200
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: mysql-migrate
+        image: mysql:8.0.45
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+            ephemeral-storage: 5Gi
+          limits:
+            cpu: 2
+            memory: 2Gi
+            ephemeral-storage: 10Gi
+        env:
+        - name: SRC_HOST
+          valueFrom: { secretKeyRef: { name: mysql-tracking-credentials, key: source-host } }
+        - name: SRC_USER
+          valueFrom: { secretKeyRef: { name: mysql-tracking-credentials, key: source-user } }
+        - name: SRC_PASS
+          valueFrom: { secretKeyRef: { name: mysql-tracking-credentials, key: source-password } }
+        - name: TGT_HOST
+          valueFrom: { secretKeyRef: { name: mysql-tracking-credentials, key: target-host } }
+        - name: TGT_USER
+          valueFrom: { secretKeyRef: { name: mysql-tracking-credentials, key: target-user } }
+        - name: TGT_PASS
+          valueFrom: { secretKeyRef: { name: mysql-tracking-credentials, key: target-password } }
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -uo pipefail
+          echo "Source: $SRC_HOST  Target: $TGT_HOST"
+          echo "--- src databases ---"
+          DBS=$(MYSQL_PWD="$SRC_PASS" mysql -h "$SRC_HOST" -u "$SRC_USER" -N -B \
+            -e "SHOW DATABASES" | grep -vE "^(information_schema|mysql|performance_schema|sys)$" || true)
+          echo "$DBS"
+          echo "--- prep target ---"
+          MYSQL_PWD="$TGT_PASS" mysql -h "$TGT_HOST" -u "$TGT_USER" \
+            -e "SET GLOBAL super_read_only=OFF; SET GLOBAL read_only=OFF; SET GLOBAL max_allowed_packet=536870912; SET GLOBAL net_buffer_length=16384; SET GLOBAL sql_mode=(REPLACE(REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''),'ONLY_FULL_GROUP_BY,',''));"
+          PREP_RC=$?
+          echo "prep rc=$PREP_RC"
+          FAILED=""
+          OK=0
+          for DB in $DBS; do
+            echo "=========================================="
+            echo "DUMP $DB at $(date)"
+            DUMP=/tmp/${DB}.sql.gz
+            MYSQL_PWD="$SRC_PASS" mysqldump -h "$SRC_HOST" -u "$SRC_USER" \
+              --databases "$DB" --single-transaction --skip-lock-tables \
+              --set-gtid-purged=OFF --routines --triggers --events --hex-blob \
+              --no-tablespaces --column-statistics=0 2>/tmp/dump.err | gzip > "$DUMP"
+            DUMP_RC=${PIPESTATUS[0]}
+            DUMP_SIZE=$(du -h "$DUMP" | cut -f1)
+            echo "dump rc=$DUMP_RC size=$DUMP_SIZE"
+            if [ "$DUMP_RC" -ne 0 ]; then
+              echo "DUMP STDERR:"; cat /tmp/dump.err; FAILED="$FAILED $DB(dump)"; continue
+            fi
+            echo "RESTORE $DB at $(date)"
+            zcat "$DUMP" | MYSQL_PWD="$TGT_PASS" mysql -h "$TGT_HOST" -u "$TGT_USER" --force \
+              --max-allowed-packet=512M --net-buffer-length=16384 --connect-timeout=300 2>/tmp/restore.err
+            REST_RC=${PIPESTATUS[1]}
+            echo "restore rc=$REST_RC"
+            if [ "$REST_RC" -ne 0 ]; then
+              echo "RESTORE STDERR:"; tail -30 /tmp/restore.err; FAILED="$FAILED $DB(restore)"; continue
+            fi
+            OK=$((OK+1))
+            rm -f "$DUMP"
+          done
+          echo "==========================================="
+          echo "Done at $(date). Success: $OK"
+          [ -n "$FAILED" ] && { echo "Failed:$FAILED"; exit 1; }
+          exit 0
