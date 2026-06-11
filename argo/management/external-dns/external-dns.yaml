@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+spec:
+  project: management
+  source:
+    repoURL: https://kubernetes-sigs.github.io/external-dns/
+    chart: external-dns
+    targetRevision: 1.19.0
+    helm:
+      releaseName: external-dns
+      values: |
+        provider:
+          name: aws
+        env:
+          - name: AWS_DEFAULT_REGION
+            value: ap-southeast-3
+        sources:
+          - ingress
+        policy: sync
+        registry: txt
+        txtOwnerId: electgo-mgmt
+        domainFilters:
+          - electgo.com
+        extraArgs:
+          # Only the VPC-private zone; public electgo.com lives in Cloudflare
+          - --zone-id-filter=Z08322112HPTPGB0KK495
+          - --aws-zone-type=private
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
