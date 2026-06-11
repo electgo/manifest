@@ -121,6 +121,16 @@ spec:
                   access: proxy
                   jsonData:
                     maxLines: 5000
+                - name: Loki (mgmt)
+                  type: loki
+                  uid: loki-mgmt
+                  url: http://loki.monitoring.svc:3100
+                  access: proxy
+          sidecar:
+            dashboards:
+              multicluster:
+                global:
+                  enabled: true
           ingress:
             enabled: true
             ingressClassName: traefik
