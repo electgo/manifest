@@ -1,0 +1,34 @@
+# Bridge to the management-cluster Matomo MySQL (matomo now lives on mgmt).
+# Consumed by pim-master matomo sync cronjobs and the pim-master app
+# (.env database.matomo.* -> matomo-db.pim-master.svc.cluster.local, user matomo_user).
+# Endpoints = mgmt node IPs, port 31306 = mysql-vpn NodePort on the mgmt cluster
+# (database/mysql-vpn). Mgmt SG sg-07dd21f853f46a3de allows 31306 from prod node
+# SG sg-002a0ca20776af7f4. Update Endpoints if mgmt nodes change.
+apiVersion: v1
+kind: Service
+metadata:
+  name: matomo-db
+  namespace: pim-master
+spec:
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 31306
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: matomo-db
+  namespace: pim-master
+subsets:
+  - addresses:
+      - ip: 10.20.17.172
+      - ip: 10.20.20.133
+      - ip: 10.20.20.47
+      - ip: 10.20.24.139
+      - ip: 10.20.27.78
+      - ip: 10.20.28.67
+      - ip: 10.20.30.185
+    ports:
+      - name: mysql
+        port: 31306
