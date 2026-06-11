@@ -137,12 +137,7 @@ spec:
         app: openproject-memcached
     spec:
       nodeSelector:
-        workload: data
-      tolerations:
-        - key: dedicated
-          operator: Equal
-          value: data
-          effect: NoSchedule
+        workload: gitops
       containers:
         - name: memcached
           image: memcached:1.6-alpine
@@ -174,12 +169,7 @@ spec:
         app: openproject-web
     spec:
       nodeSelector:
-        workload: data
-      tolerations:
-        - key: dedicated
-          operator: Equal
-          value: data
-          effect: NoSchedule
+        workload: helper
       securityContext:
         fsGroup: 1000
       initContainers:
@@ -253,12 +243,7 @@ spec:
         app: openproject-worker
     spec:
       nodeSelector:
-        workload: data
-      tolerations:
-        - key: dedicated
-          operator: Equal
-          value: data
-          effect: NoSchedule
+        workload: control
       securityContext:
         fsGroup: 1000
       containers:
@@ -294,12 +279,7 @@ spec:
         app: openproject-hocuspocus
     spec:
       nodeSelector:
-        workload: data
-      tolerations:
-        - key: dedicated
-          operator: Equal
-          value: data
-          effect: NoSchedule
+        workload: gitops
       containers:
         - name: hocuspocus
           image: openproject/hocuspocus:release-338001b2
