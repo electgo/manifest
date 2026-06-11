@@ -66,6 +66,18 @@ spec:
                   role = "node"
                 }
 
+                // k3s single-binary: the kubelet endpoint also exposes
+                // apiserver/etcd histograms. Drop the same heavy buckets the
+                // mgmt kps relabeling drops (~47% of series otherwise).
+                prometheus.relabel "drop_heavy" {
+                  rule {
+                    source_labels = ["__name__"]
+                    regex         = "(apiserver_request_duration_seconds_bucket|apiserver_request_sli_duration_seconds_bucket|apiserver_request_body_size_bytes_bucket|apiserver_watch_list_duration_seconds_bucket|apiserver_response_sizes_bucket|etcd_request_duration_seconds_bucket)"
+                    action        = "drop"
+                  }
+                  forward_to = [prometheus.remote_write.mgmt.receiver]
+                }
+
                 prometheus.scrape "kubelet" {
                   targets           = discovery.kubernetes.nodes.targets
                   scheme            = "https"
@@ -76,7 +88,7 @@ spec:
                   clustering {
                     enabled = true
                   }
-                  forward_to = [prometheus.remote_write.mgmt.receiver]
+                  forward_to = [prometheus.relabel.drop_heavy.receiver]
                 }
 
                 prometheus.scrape "cadvisor" {
