@@ -20,13 +20,21 @@ spec:
         sources:
           - ingress
         policy: sync
-        registry: txt
-        txtOwnerId: electgo-mgmt
+        # noop registry: TXT ownership records can't live at the apex of the
+        # per-host zones; safe because these zones are external-dns exclusive
+        registry: noop
         domainFilters:
           - electgo.com
         extraArgs:
-          # Only the VPC-private zone; public electgo.com lives in Cloudflare
-          - --zone-id-filter=Z08322112HPTPGB0KK495
+          # Per-host VPC-private zones only; public electgo.com lives in
+          # Cloudflare and must NOT be shadowed by a broad private zone
+          - --zone-id-filter=Z08242443RFJYAQXK7TS4 # zot
+          - --zone-id-filter=Z0825227BIQVGFH4NKL6 # rancher
+          - --zone-id-filter=Z05780641AIFQZ17I1T05 # argocd
+          - --zone-id-filter=Z05781301VUSX5NANGEKC # zitadel
+          - --zone-id-filter=Z06908971Z7W0I688LA2K # pm
+          - --zone-id-filter=Z09467253AERFIQASFIAU # grafana
+          - --zone-id-filter=Z069018517JDV7ZIMATSZ # alertmanager
           - --aws-zone-type=private
   destination:
     server: https://kubernetes.default.svc
