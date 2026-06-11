@@ -54,6 +54,34 @@ spec:
             existingSecret: grafana-admin
             userKey: admin-user
             passwordKey: admin-password
+          defaultDashboardsTimezone: Asia/Jakarta
+          smtp:
+            existingSecret: grafana-smtp-credentials
+            userKey: user
+            passwordKey: password
+          alerting:
+            contactpoints.yaml:
+              apiVersion: 1
+              contactPoints:
+                - orgId: 1
+                  name: electgo-production-email
+                  receivers:
+                    - uid: electgo-production-email
+                      type: email
+                      settings:
+                        addresses: yohannes@limkimhai.com.sg;yusoof.sh@dsg.id;chesa.nur@dsg.id
+                        singleEmail: false
+            policies.yaml:
+              apiVersion: 1
+              policies:
+                - orgId: 1
+                  receiver: electgo-production-email
+                  group_by:
+                    - grafana_folder
+                    - alertname
+                  group_wait: 30s
+                  group_interval: 5m
+                  repeat_interval: 12h
           nodeSelector:
             workload: data
           tolerations:
@@ -91,6 +119,8 @@ spec:
                   uid: loki
                   url: http://loki-prod.monitoring.svc:3100
                   access: proxy
+                  jsonData:
+                    maxLines: 5000
           ingress:
             enabled: true
             ingressClassName: traefik
@@ -108,6 +138,23 @@ spec:
             server:
               root_url: https://grafana.electgo.com
               serve_from_sub_path: false
+            security:
+              cookie_secure: true
+              strict_transport_security: true
+            analytics:
+              reporting_enabled: false
+              check_for_updates: false
+            users:
+              auto_assign_org_role: Viewer
+            auth.anonymous:
+              enabled: false
+            smtp:
+              enabled: true
+              host: smtp.gmail.com:587
+              user: ptdigitalsolusigrup@gmail.com
+              from_address: ptdigitalsolusigrup@gmail.com
+              from_name: ElectGo Grafana
+              startTLS_policy: MandatoryStartTLS
         kube-state-metrics:
           rbac:
             extraRules:
