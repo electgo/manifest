@@ -73,7 +73,7 @@ spec:
         - alert: NamespacePodCPUHigh
           expr: |
             100 * quantile by (namespace) (0.95,
-              rate(container_cpu_usage_seconds_total{namespace=~"database|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich|n8n|matomo|openproject|elastic-system|kafka-system|haproxy-ingress", container!="", container!="POD"}[5m])
+              rate(container_cpu_usage_seconds_total{namespace=~"database|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich|n8n|matomo|openproject|elastic-system|haproxy-ingress", container!="", container!="POD"}[5m])
               / on (namespace, pod, container) group_left
               kube_pod_container_resource_limits{resource="cpu"}
             ) > 80
@@ -85,7 +85,7 @@ spec:
         - alert: NamespacePodMemoryHigh
           expr: |
             100 * quantile by (namespace) (0.95,
-              container_memory_working_set_bytes{namespace=~"database|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich|n8n|matomo|openproject|elastic-system|kafka-system|haproxy-ingress", container!="", container!="POD"}
+              container_memory_working_set_bytes{namespace=~"database|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich|n8n|matomo|openproject|elastic-system|haproxy-ingress", container!="", container!="POD"}
               / on (namespace, pod, container) group_left
               kube_pod_container_resource_limits{resource="memory"}
             ) > 85
@@ -95,7 +95,7 @@ spec:
             summary: "Namespace {{ $labels.namespace }} p95 pod memory > 85% of limit for 15m"
 
         - alert: NamespacePodRestarts
-          expr: sum by (namespace) (increase(kube_pod_container_status_restarts_total{namespace=~"database|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich|n8n|matomo|openproject|elastic-system|kafka-system|haproxy-ingress"}[5m])) > 3
+          expr: sum by (namespace) (increase(kube_pod_container_status_restarts_total{namespace=~"database|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich|n8n|matomo|openproject|elastic-system|haproxy-ingress"}[5m])) > 3
           for: 5m
           labels: { severity: warning }
           annotations:
@@ -162,10 +162,3 @@ spec:
           labels: { severity: critical }
           annotations:
             summary: "MySQL exporter cannot reach mysql-main for 2m"
-
-        - alert: KafkaBrokersDown
-          expr: kafka_brokers < 1
-          for: 2m
-          labels: { severity: critical }
-          annotations:
-            summary: "Kafka has no live brokers"
