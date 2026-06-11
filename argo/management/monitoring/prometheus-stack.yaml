@@ -16,6 +16,11 @@ spec:
           prometheusSpec:
             nodeSelector:
               workload: observe
+            resources:
+              requests:
+                memory: 1536Mi
+              limits:
+                memory: 2560Mi
             storageSpec:
               volumeClaimTemplate:
                 spec:
@@ -23,6 +28,19 @@ spec:
                   resources:
                     requests:
                       storage: 50Gi
+        # apiserver/etcd histogram buckets = ~47% of all series (190k/404k) on a 4G node
+        kubeApiServer:
+          serviceMonitor:
+            metricRelabelings:
+              - action: drop
+                sourceLabels: [__name__]
+                regex: (apiserver_request_duration_seconds_bucket|apiserver_request_sli_duration_seconds_bucket|apiserver_request_body_size_bytes_bucket|apiserver_watch_list_duration_seconds_bucket|apiserver_response_sizes_bucket|etcd_request_duration_seconds_bucket)
+        kubeEtcd:
+          serviceMonitor:
+            metricRelabelings:
+              - action: drop
+                sourceLabels: [__name__]
+                regex: etcd_request_duration_seconds_bucket
         grafana:
           nodeSelector:
             workload: data
