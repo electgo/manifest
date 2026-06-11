@@ -15,12 +15,3 @@ metadata:
 spec:
   type: ExternalName
   externalName: postgres-main-pgbouncer.database.svc.cluster.local
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mongodb-main
-  namespace: database
-spec:
-  type: ExternalName
-  externalName: mongodb-main-mongos.database.svc.cluster.local
