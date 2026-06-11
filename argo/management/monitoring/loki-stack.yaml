@@ -31,10 +31,7 @@ spec:
               cpu: "1"
               memory: 1Gi
         promtail:
-          enabled: true
-          config:
-            clients:
-              - url: http://loki:3100/loki/api/v1/push
+          enabled: false
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
