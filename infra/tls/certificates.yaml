@@ -266,7 +266,7 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-    - "backroom-dev.electgo.com"
+    - "backroom.dev.electgo.com"
   privateKey:
     algorithm: ECDSA
     size: 256
@@ -282,7 +282,7 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-    - "seller-dev.electgo.com"
+    - "seller.dev.electgo.com"
   privateKey:
     algorithm: ECDSA
     size: 256
@@ -298,7 +298,7 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-    - "fe-dev.electgo.com"
+    - "fe.dev.electgo.com"
   privateKey:
     algorithm: ECDSA
     size: 256
