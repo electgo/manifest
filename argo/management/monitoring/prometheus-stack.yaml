@@ -35,6 +35,14 @@ spec:
               - action: drop
                 sourceLabels: [__name__]
                 regex: (apiserver_request_duration_seconds_bucket|apiserver_request_sli_duration_seconds_bucket|apiserver_request_body_size_bytes_bucket|apiserver_watch_list_duration_seconds_bucket|apiserver_response_sizes_bucket|etcd_request_duration_seconds_bucket)
+        # k3s embeds these control-plane components; no separate metrics
+        # endpoints exist, so the chart defaults fire permanent *Down alerts.
+        kubeProxy:
+          enabled: false
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
         kubeEtcd:
           serviceMonitor:
             metricRelabelings:
