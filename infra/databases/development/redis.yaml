@@ -27,6 +27,17 @@ spec:
   selector:
     app.kubernetes.io/name: redis
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: database-sharedops-credentials
+  namespace: database
+stringData:
+  username: sharedops
+  password: __REDACTED_SHAREDOPS_PASSWORD__
+  index: "4"
+type: Opaque
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -51,13 +62,18 @@ spec:
             - sh
             - -c
             - |
-              printf 'user default on nopass ~* &* +@all\nuser developer on >%s ~* &* +@all\n' "$DEVELOPER_PASSWORD" > /data/users.acl
+              printf 'user default on nopass ~* &* +@all\nuser developer on >%s ~* &* +@all\nuser sharedops on >%s ~* &* +@all\n' "$DEVELOPER_PASSWORD" "$SHAREDOPS_PASSWORD" > /data/users.acl
               exec redis-server --aclfile /data/users.acl --maxmemory 200mb --maxmemory-policy allkeys-lru
           env:
             - name: DEVELOPER_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: database-developer-credentials
+                  key: password
+            - name: SHAREDOPS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-sharedops-credentials
                   key: password
           ports:
             - name: redis
