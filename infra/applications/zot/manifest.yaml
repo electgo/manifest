@@ -12,6 +12,7 @@ type: Opaque
 stringData:
   htpasswd: |
     admin:$2y$05$6eHIPHQDn9fWgtuXX12aA.wd8Tbi/kUwVlINMskkNf/bXT8K4KsRG
+    ci:$2y$10$IW.slXViiYaz22b6lIHw8.lAooERKxfDEGNBqcZkNYIgaqgL9.RiC
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -59,6 +60,10 @@ data:
                 {
                   "users": ["admin"],
                   "actions": ["read", "create", "update", "delete"]
+                },
+                {
+                  "users": ["ci"],
+                  "actions": ["read", "create", "update"]
                 }
               ],
               "defaultPolicy": ["read", "create", "update", "delete"]
