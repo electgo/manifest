@@ -13,8 +13,9 @@ spec:
     path: argo
     directory:
       recurse: true
-      # Match only Argo CRs; skip helm values files, READMEs, instructions
-      include: '{*-application.yaml,projects/*.yaml}'
+      # Match only Argo CRs; skip helm values files, READMEs, instructions.
+      # Globs don't cross "/", so list top-level and per-app subdir patterns.
+      include: '{*-application.yaml,**/*-application.yaml,projects/*.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
