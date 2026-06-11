@@ -42,6 +42,10 @@ spec:
                 sourceLabels: [__name__]
                 regex: etcd_request_duration_seconds_bucket
         grafana:
+          admin:
+            existingSecret: grafana-admin
+            userKey: admin-user
+            passwordKey: admin-password
           nodeSelector:
             workload: data
           tolerations:
