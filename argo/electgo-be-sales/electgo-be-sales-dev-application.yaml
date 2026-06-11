@@ -15,8 +15,6 @@ spec:
       parameters:
         - name: replicaCount
           value: "1"
-        - name: env.config.KAFKA_HOST
-          value: kafka.database.svc.cluster.local
         - name: env.config.POINT_SERVICE_URL
           value: http://electgo-be-point-reward.electgo-be-point-reward.svc.cluster.local:3205
         - name: env.config.PRODUCT_SERVICE_URL
