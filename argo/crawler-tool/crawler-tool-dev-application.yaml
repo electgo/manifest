@@ -11,7 +11,7 @@ spec:
     path: helm/crawler-tool
     helm:
       valueFiles:
-        - values-development.yaml
+        - values-dev.yaml
       parameters:
         - name: env.config.REDIS_BATCH_SIZE
           value: "100"
