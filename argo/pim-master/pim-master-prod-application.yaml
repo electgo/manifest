@@ -23,8 +23,6 @@ spec:
         - values.yaml
         - values-prod.yaml
       parameters:
-        - name: secret.create
-          value: "false"
         - name: env.app_base_url
           value: https://pim.electgo.com
         - name: env.base_url

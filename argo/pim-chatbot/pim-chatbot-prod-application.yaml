@@ -29,8 +29,6 @@ spec:
         - values.yaml
         - values-prod.yaml
       parameters:
-        - name: secret.create
-          value: "false"
         - name: migration.enabled
           value: "false"
         - name: persistence.writable.storageClass
