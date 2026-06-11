@@ -75,6 +75,22 @@ spec:
                   isDefault: true
                   jsonData:
                     timeInterval: "15s"
+                # Prod EKS observability via bridge Services (see manifest
+                # k8s/management/monitoring/prod-datasource-bridge.yaml).
+                # uids "prometheus"/"loki" match the prod-grafana uids the
+                # imported ElectGo dashboards reference.
+                - name: Prometheus (prod)
+                  type: prometheus
+                  uid: prometheus
+                  url: http://prometheus-prod.monitoring.svc:9090
+                  access: proxy
+                  jsonData:
+                    timeInterval: "15s"
+                - name: Loki
+                  type: loki
+                  uid: loki
+                  url: http://loki-prod.monitoring.svc:3100
+                  access: proxy
           ingress:
             enabled: true
             ingressClassName: traefik
