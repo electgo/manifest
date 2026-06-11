@@ -38,7 +38,7 @@ data:
               "keepTags": [
                 { "patterns": ["prod-.*"], "mostRecentlyPushedCount": 10 },
                 { "patterns": ["dev-.*"], "mostRecentlyPushedCount": 5 },
-                { "patterns": ["latest", "development", "prod-latest"] }
+                { "patterns": ["latest"] }
               ]
             }
           ]
