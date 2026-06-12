@@ -1,11 +1,11 @@
 {
  "dashboard": {
-  "uid": "electgo-dev-app-detail",
-  "title": "ElectGo Dev / App Detail",
+  "uid": "electgo-dev-data-layer",
+  "title": "ElectGo Dev / Data Layer",
   "tags": [
    "electgo",
    "development",
-   "apps"
+   "database"
   ],
   "timezone": "browser",
   "refresh": "1m",
@@ -13,87 +13,28 @@
    "from": "now-6h",
    "to": "now"
   },
-  "templating": {
-   "list": [
-    {
-     "name": "namespace",
-     "type": "query",
-     "datasource": {
-      "type": "prometheus",
-      "uid": "PBFA97CFB590B2093"
-     },
-     "refresh": 2,
-     "query": "label_values(kube_pod_info{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\"}, namespace)",
-     "current": {
-      "text": "pim-master",
-      "value": "pim-master"
-     },
-     "includeAll": false,
-     "multi": false,
-     "label": "Namespace"
-    }
-   ]
-  },
   "panels": [
    {
     "id": 1,
-    "type": "stat",
-    "title": "Pods running",
+    "type": "row",
+    "title": "Dev data layer (in-cluster, namespace database)",
     "gridPos": {
      "x": 0,
      "y": 0,
-     "w": 3,
-     "h": 4
+     "w": 24,
+     "h": 1
     },
-    "datasource": {
-     "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
-    },
-    "fieldConfig": {
-     "defaults": {
-      "unit": "none",
-      "thresholds": {
-       "mode": "absolute",
-       "steps": [
-        {
-         "color": "green",
-         "value": null
-        }
-       ]
-      },
-      "decimals": 0
-     },
-     "overrides": []
-    },
-    "options": {
-     "reduceOptions": {
-      "calcs": [
-       "lastNotNull"
-      ]
-     },
-     "graphMode": "area",
-     "colorMode": "value"
-    },
-    "targets": [
-     {
-      "refId": "A",
-      "expr": "sum(kube_pod_status_phase{cluster=\"development\",namespace=\"$namespace\",phase=\"Running\"})",
-      "instant": true,
-      "datasource": {
-       "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
-      }
-     }
-    ]
+    "collapsed": false,
+    "panels": []
    },
    {
     "id": 2,
     "type": "stat",
-    "title": "Pods not running",
+    "title": "StatefulSets ready",
     "gridPos": {
-     "x": 3,
-     "y": 0,
-     "w": 3,
+     "x": 0,
+     "y": 1,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -109,10 +50,6 @@
         {
          "color": "green",
          "value": null
-        },
-        {
-         "color": "red",
-         "value": 1
         }
        ]
       },
@@ -132,7 +69,7 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(kube_pod_status_phase{cluster=\"development\",namespace=\"$namespace\",phase=~\"Pending|Failed|Unknown\"})",
+      "expr": "sum(kube_statefulset_status_replicas_ready{cluster=\"development\",namespace=\"database\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
@@ -144,11 +81,62 @@
    {
     "id": 3,
     "type": "stat",
+    "title": "Pods running",
+    "gridPos": {
+     "x": 4,
+     "y": 1,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "area",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(kube_pod_status_phase{cluster=\"development\",namespace=\"database\",phase=\"Running\"})",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 4,
+    "type": "stat",
     "title": "Restarts 1h",
     "gridPos": {
-     "x": 6,
-     "y": 0,
-     "w": 3,
+     "x": 8,
+     "y": 1,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -191,7 +179,7 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace=\"$namespace\"}[1h]))",
+      "expr": "sum(increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace=\"database\"}[1h]))",
       "instant": true,
       "datasource": {
        "type": "prometheus",
@@ -201,13 +189,13 @@
     ]
    },
    {
-    "id": 4,
+    "id": 5,
     "type": "stat",
     "title": "CPU cores",
     "gridPos": {
-     "x": 9,
-     "y": 0,
-     "w": 3,
+     "x": 12,
+     "y": 1,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -226,7 +214,7 @@
         }
        ]
       },
-      "decimals": 3
+      "decimals": 2
      },
      "overrides": []
     },
@@ -242,7 +230,7 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace=\"$namespace\",container!=\"\"}[5m]))",
+      "expr": "sum(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace=\"database\",container!=\"\"}[5m]))",
       "instant": true,
       "datasource": {
        "type": "prometheus",
@@ -252,13 +240,13 @@
     ]
    },
    {
-    "id": 5,
+    "id": 6,
     "type": "stat",
     "title": "Memory",
     "gridPos": {
-     "x": 12,
-     "y": 0,
-     "w": 3,
+     "x": 16,
+     "y": 1,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -292,7 +280,7 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(container_memory_working_set_bytes{cluster=\"development\",namespace=\"$namespace\",container!=\"\"})",
+      "expr": "sum(container_memory_working_set_bytes{cluster=\"development\",namespace=\"database\",container!=\"\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
@@ -302,13 +290,13 @@
     ]
    },
    {
-    "id": 6,
+    "id": 7,
     "type": "stat",
-    "title": "Mem vs limit",
+    "title": "Max PVC usage",
     "gridPos": {
-     "x": 15,
-     "y": 0,
-     "w": 3,
+     "x": 20,
+     "y": 1,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -351,7 +339,7 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "100*sum(container_memory_working_set_bytes{cluster=\"development\",namespace=\"$namespace\",container!=\"\"})/sum(kube_pod_container_resource_limits{cluster=\"development\",namespace=\"$namespace\",resource=\"memory\"})",
+      "expr": "max(100*kubelet_volume_stats_used_bytes{cluster=\"development\",namespace=\"database\"}/kubelet_volume_stats_capacity_bytes{cluster=\"development\",namespace=\"database\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
@@ -361,121 +349,12 @@
     ]
    },
    {
-    "id": 7,
-    "type": "stat",
-    "title": "Err 5m",
-    "gridPos": {
-     "x": 18,
-     "y": 0,
-     "w": 3,
-     "h": 4
-    },
-    "datasource": {
-     "type": "loki",
-     "uid": "loki-mgmt"
-    },
-    "fieldConfig": {
-     "defaults": {
-      "unit": "none",
-      "thresholds": {
-       "mode": "absolute",
-       "steps": [
-        {
-         "color": "green",
-         "value": null
-        },
-        {
-         "color": "#EAB839",
-         "value": 1
-        },
-        {
-         "color": "red",
-         "value": 20
-        }
-       ]
-      },
-      "decimals": 0
-     },
-     "overrides": []
-    },
-    "options": {
-     "reduceOptions": {
-      "calcs": [
-       "lastNotNull"
-      ]
-     },
-     "graphMode": "area",
-     "colorMode": "value"
-    },
-    "targets": [
-     {
-      "refId": "A",
-      "expr": "sum(count_over_time({cluster=\"development\",namespace=\"$namespace\"} |~ `(?i)(error|fatal|panic|exception)` [5m]))",
-      "instant": true,
-      "datasource": {
-       "type": "loki",
-       "uid": "loki-mgmt"
-      }
-     }
-    ]
-   },
-   {
     "id": 8,
-    "type": "stat",
-    "title": "Log B/s",
-    "gridPos": {
-     "x": 21,
-     "y": 0,
-     "w": 3,
-     "h": 4
-    },
-    "datasource": {
-     "type": "loki",
-     "uid": "loki-mgmt"
-    },
-    "fieldConfig": {
-     "defaults": {
-      "unit": "Bps",
-      "thresholds": {
-       "mode": "absolute",
-       "steps": [
-        {
-         "color": "green",
-         "value": null
-        }
-       ]
-      }
-     },
-     "overrides": []
-    },
-    "options": {
-     "reduceOptions": {
-      "calcs": [
-       "lastNotNull"
-      ]
-     },
-     "graphMode": "area",
-     "colorMode": "value"
-    },
-    "targets": [
-     {
-      "refId": "A",
-      "expr": "sum(bytes_rate({cluster=\"development\",namespace=\"$namespace\"}[5m]))",
-      "instant": true,
-      "datasource": {
-       "type": "loki",
-       "uid": "loki-mgmt"
-      }
-     }
-    ]
-   },
-   {
-    "id": 9,
     "type": "row",
-    "title": "Resources",
+    "title": "Per database",
     "gridPos": {
      "x": 0,
-     "y": 4,
+     "y": 5,
      "w": 24,
      "h": 1
     },
@@ -483,12 +362,12 @@
     "panels": []
    },
    {
-    "id": 10,
+    "id": 9,
     "type": "timeseries",
-    "title": "CPU per pod vs limit",
+    "title": "CPU per database (cores)",
     "gridPos": {
      "x": 0,
-     "y": 5,
+     "y": 6,
      "w": 8,
      "h": 8
     },
@@ -520,18 +399,8 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (pod)(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace=\"$namespace\",container!=\"\"}[5m]))",
+      "expr": "sum by (pod)(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace=\"database\",container!=\"\"}[5m]))",
       "legendFormat": "{{pod}}",
-      "datasource": {
-       "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
-      },
-      "instant": false
-     },
-     {
-      "refId": "B",
-      "expr": "sum(kube_pod_container_resource_limits{cluster=\"development\",namespace=\"$namespace\",resource=\"cpu\"})",
-      "legendFormat": "limit",
       "datasource": {
        "type": "prometheus",
        "uid": "PBFA97CFB590B2093"
@@ -541,12 +410,12 @@
     ]
    },
    {
-    "id": 11,
+    "id": 10,
     "type": "timeseries",
-    "title": "Memory per pod vs limit",
+    "title": "Memory per database",
     "gridPos": {
      "x": 8,
-     "y": 5,
+     "y": 6,
      "w": 8,
      "h": 8
     },
@@ -578,18 +447,8 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (pod)(container_memory_working_set_bytes{cluster=\"development\",namespace=\"$namespace\",container!=\"\"})",
+      "expr": "sum by (pod)(container_memory_working_set_bytes{cluster=\"development\",namespace=\"database\",container!=\"\"})",
       "legendFormat": "{{pod}}",
-      "datasource": {
-       "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
-      },
-      "instant": false
-     },
-     {
-      "refId": "B",
-      "expr": "sum(kube_pod_container_resource_limits{cluster=\"development\",namespace=\"$namespace\",resource=\"memory\"})",
-      "legendFormat": "limit",
       "datasource": {
        "type": "prometheus",
        "uid": "PBFA97CFB590B2093"
@@ -599,12 +458,12 @@
     ]
    },
    {
-    "id": 12,
+    "id": 11,
     "type": "timeseries",
-    "title": "Network I/O",
+    "title": "PVC usage % per volume",
     "gridPos": {
      "x": 16,
-     "y": 5,
+     "y": 6,
      "w": 8,
      "h": 8
     },
@@ -614,10 +473,32 @@
     },
     "fieldConfig": {
      "defaults": {
-      "unit": "Bps",
+      "unit": "percent",
       "custom": {
        "fillOpacity": 8,
-       "showPoints": "never"
+       "showPoints": "never",
+       "thresholdsStyle": {
+        "mode": "line"
+       }
+      },
+      "max": 100,
+      "min": 0,
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 75
+        },
+        {
+         "color": "red",
+         "value": 90
+        }
+       ]
       }
      },
      "overrides": []
@@ -636,18 +517,8 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(rate(container_network_receive_bytes_total{cluster=\"development\",namespace=\"$namespace\"}[5m]))",
-      "legendFormat": "rx",
-      "datasource": {
-       "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
-      },
-      "instant": false
-     },
-     {
-      "refId": "B",
-      "expr": "-sum(rate(container_network_transmit_bytes_total{cluster=\"development\",namespace=\"$namespace\"}[5m]))",
-      "legendFormat": "tx",
+      "expr": "100*kubelet_volume_stats_used_bytes{cluster=\"development\",namespace=\"database\"}/kubelet_volume_stats_capacity_bytes{cluster=\"development\",namespace=\"database\"}",
+      "legendFormat": "{{persistentvolumeclaim}}",
       "datasource": {
        "type": "prometheus",
        "uid": "PBFA97CFB590B2093"
@@ -657,12 +528,12 @@
     ]
    },
    {
-    "id": 13,
+    "id": 12,
     "type": "row",
-    "title": "Reliability",
+    "title": "Reliability and storage",
     "gridPos": {
      "x": 0,
-     "y": 13,
+     "y": 14,
      "w": 24,
      "h": 1
     },
@@ -670,12 +541,12 @@
     "panels": []
    },
    {
-    "id": 14,
+    "id": 13,
     "type": "timeseries",
-    "title": "Restarts by pod (1h)",
+    "title": "Restarts by database pod (1h)",
     "gridPos": {
      "x": 0,
-     "y": 14,
+     "y": 15,
      "w": 8,
      "h": 8
     },
@@ -707,8 +578,56 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (pod)(increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace=\"$namespace\"}[1h]))",
+      "expr": "sum by (pod)(increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace=\"database\"}[1h]))",
       "legendFormat": "{{pod}}",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      },
+      "instant": false
+     }
+    ]
+   },
+   {
+    "id": 14,
+    "type": "timeseries",
+    "title": "PVC free bytes",
+    "gridPos": {
+     "x": 8,
+     "y": 15,
+     "w": 8,
+     "h": 8
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "bytes",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "kubelet_volume_stats_available_bytes{cluster=\"development\",namespace=\"database\"}",
+      "legendFormat": "{{persistentvolumeclaim}}",
       "datasource": {
        "type": "prometheus",
        "uid": "PBFA97CFB590B2093"
@@ -720,128 +639,16 @@
    {
     "id": 15,
     "type": "timeseries",
-    "title": "Pod phase",
-    "gridPos": {
-     "x": 8,
-     "y": 14,
-     "w": 8,
-     "h": 8
-    },
-    "datasource": {
-     "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
-    },
-    "fieldConfig": {
-     "defaults": {
-      "unit": "none",
-      "custom": {
-       "fillOpacity": 12,
-       "showPoints": "never",
-       "stacking": {
-        "mode": "normal"
-       }
-      }
-     },
-     "overrides": []
-    },
-    "options": {
-     "legend": {
-      "displayMode": "list",
-      "placement": "bottom",
-      "showLegend": true
-     },
-     "tooltip": {
-      "mode": "multi",
-      "sort": "desc"
-     }
-    },
-    "targets": [
-     {
-      "refId": "A",
-      "expr": "sum by (phase)(kube_pod_status_phase{cluster=\"development\",namespace=\"$namespace\"})",
-      "legendFormat": "{{phase}}",
-      "datasource": {
-       "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
-      },
-      "instant": false
-     }
-    ]
-   },
-   {
-    "id": 16,
-    "type": "timeseries",
-    "title": "Container waiting reasons",
+    "title": "Network I/O (data ns)",
     "gridPos": {
      "x": 16,
-     "y": 14,
+     "y": 15,
      "w": 8,
      "h": 8
     },
     "datasource": {
      "type": "prometheus",
      "uid": "PBFA97CFB590B2093"
-    },
-    "fieldConfig": {
-     "defaults": {
-      "unit": "none",
-      "custom": {
-       "fillOpacity": 8,
-       "showPoints": "never"
-      }
-     },
-     "overrides": []
-    },
-    "options": {
-     "legend": {
-      "displayMode": "list",
-      "placement": "bottom",
-      "showLegend": true
-     },
-     "tooltip": {
-      "mode": "multi",
-      "sort": "desc"
-     }
-    },
-    "targets": [
-     {
-      "refId": "A",
-      "expr": "sum by (reason)(kube_pod_container_status_waiting_reason{cluster=\"development\",namespace=\"$namespace\"}) > 0",
-      "legendFormat": "{{reason}}",
-      "datasource": {
-       "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
-      },
-      "instant": false
-     }
-    ]
-   },
-   {
-    "id": 17,
-    "type": "row",
-    "title": "Logs",
-    "gridPos": {
-     "x": 0,
-     "y": 22,
-     "w": 24,
-     "h": 1
-    },
-    "collapsed": false,
-    "panels": []
-   },
-   {
-    "id": 18,
-    "type": "timeseries",
-    "title": "Log volume by container",
-    "gridPos": {
-     "x": 0,
-     "y": 23,
-     "w": 12,
-     "h": 7
-    },
-    "datasource": {
-     "type": "loki",
-     "uid": "loki-mgmt"
     },
     "fieldConfig": {
      "defaults": {
@@ -867,73 +674,35 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (container)(bytes_rate({cluster=\"development\",namespace=\"$namespace\"}[5m]))",
-      "legendFormat": "{{container}}",
+      "expr": "sum(rate(container_network_receive_bytes_total{cluster=\"development\",namespace=\"database\"}[5m]))",
+      "legendFormat": "rx",
       "datasource": {
-       "type": "loki",
-       "uid": "loki-mgmt"
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
       },
-      "queryType": "range"
-     }
-    ]
-   },
-   {
-    "id": 19,
-    "type": "timeseries",
-    "title": "Error lines by container (5m)",
-    "gridPos": {
-     "x": 12,
-     "y": 23,
-     "w": 12,
-     "h": 7
-    },
-    "datasource": {
-     "type": "loki",
-     "uid": "loki-mgmt"
-    },
-    "fieldConfig": {
-     "defaults": {
-      "unit": "none",
-      "custom": {
-       "fillOpacity": 8,
-       "showPoints": "never"
-      }
+      "instant": false
      },
-     "overrides": []
-    },
-    "options": {
-     "legend": {
-      "displayMode": "list",
-      "placement": "bottom",
-      "showLegend": true
-     },
-     "tooltip": {
-      "mode": "multi",
-      "sort": "desc"
-     }
-    },
-    "targets": [
      {
-      "refId": "A",
-      "expr": "sum by (container)(count_over_time({cluster=\"development\",namespace=\"$namespace\"} |~ `(?i)(error|fatal|panic|exception)` [5m]))",
-      "legendFormat": "{{container}}",
+      "refId": "B",
+      "expr": "-sum(rate(container_network_transmit_bytes_total{cluster=\"development\",namespace=\"database\"}[5m]))",
+      "legendFormat": "tx",
       "datasource": {
-       "type": "loki",
-       "uid": "loki-mgmt"
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
       },
-      "queryType": "range"
+      "instant": false
      }
     ]
    },
    {
-    "id": 20,
+    "id": 16,
     "type": "logs",
-    "title": "Error / warning logs",
+    "title": "Database logs (warnings/errors)",
     "gridPos": {
      "x": 0,
-     "y": 30,
+     "y": 23,
      "w": 24,
-     "h": 12
+     "h": 11
     },
     "datasource": {
      "type": "loki",
@@ -949,7 +718,7 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "{cluster=\"development\",namespace=\"$namespace\"} |~ `(?i)(error|warn|fatal|panic|exception)`",
+      "expr": "{cluster=\"development\",namespace=\"database\"} |~ `(?i)(error|warn|fatal|fail|slow)`",
       "datasource": {
        "type": "loki",
        "uid": "loki-mgmt"
