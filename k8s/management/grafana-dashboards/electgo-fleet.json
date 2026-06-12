@@ -14,9 +14,9 @@
   },
   "panels": [
    {
-    "id": 1,
+    "id": 29,
     "type": "row",
-    "title": "Fleet at a glance",
+    "title": "production at a glance",
     "gridPos": {
      "x": 0,
      "y": 0,
@@ -27,13 +27,13 @@
     "panels": []
    },
    {
-    "id": 2,
+    "id": 30,
     "type": "stat",
-    "title": "production / nodes ready",
+    "title": "production / Nodes Ready",
     "gridPos": {
      "x": 0,
      "y": 1,
-     "w": 2,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -51,7 +51,8 @@
          "value": null
         }
        ]
-      }
+      },
+      "decimals": 0
      },
      "overrides": []
     },
@@ -77,13 +78,13 @@
     ]
    },
    {
-    "id": 3,
+    "id": 31,
     "type": "stat",
-    "title": "production / pods running",
+    "title": "production / Pods Running",
     "gridPos": {
-     "x": 2,
+     "x": 4,
      "y": 1,
-     "w": 2,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -101,7 +102,8 @@
          "value": null
         }
        ]
-      }
+      },
+      "decimals": 0
      },
      "overrides": []
     },
@@ -127,13 +129,13 @@
     ]
    },
    {
-    "id": 4,
+    "id": 32,
     "type": "stat",
-    "title": "production / restarts 1h",
+    "title": "production / Restarts 1h",
     "gridPos": {
-     "x": 4,
+     "x": 8,
      "y": 1,
-     "w": 2,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -186,13 +188,13 @@
     ]
    },
    {
-    "id": 5,
+    "id": 33,
     "type": "stat",
-    "title": "production / worst disk",
+    "title": "production / Worst Disk %",
     "gridPos": {
-     "x": 6,
+     "x": 12,
      "y": 1,
-     "w": 2,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -245,13 +247,144 @@
     ]
    },
    {
-    "id": 6,
+    "id": 34,
     "type": "stat",
-    "title": "management / nodes ready",
+    "title": "production / CPU %",
     "gridPos": {
-     "x": 8,
+     "x": 16,
      "y": 1,
-     "w": 2,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 75
+        },
+        {
+         "color": "red",
+         "value": 85
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "100*(1-avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "prometheus"
+      }
+     }
+    ]
+   },
+   {
+    "id": 35,
+    "type": "stat",
+    "title": "production / Memory %",
+    "gridPos": {
+     "x": 20,
+     "y": 1,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 75
+        },
+        {
+         "color": "red",
+         "value": 85
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "100*(1-sum(node_memory_MemAvailable_bytes)/sum(node_memory_MemTotal_bytes))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "prometheus"
+      }
+     }
+    ]
+   },
+   {
+    "id": 36,
+    "type": "row",
+    "title": "management at a glance",
+    "gridPos": {
+     "x": 0,
+     "y": 5,
+     "w": 24,
+     "h": 1
+    },
+    "collapsed": false,
+    "panels": []
+   },
+   {
+    "id": 37,
+    "type": "stat",
+    "title": "management / Nodes Ready",
+    "gridPos": {
+     "x": 0,
+     "y": 6,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -269,7 +402,8 @@
          "value": null
         }
        ]
-      }
+      },
+      "decimals": 0
      },
      "overrides": []
     },
@@ -295,13 +429,13 @@
     ]
    },
    {
-    "id": 7,
+    "id": 38,
     "type": "stat",
-    "title": "management / pods running",
+    "title": "management / Pods Running",
     "gridPos": {
-     "x": 10,
-     "y": 1,
-     "w": 2,
+     "x": 4,
+     "y": 6,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -319,7 +453,8 @@
          "value": null
         }
        ]
-      }
+      },
+      "decimals": 0
      },
      "overrides": []
     },
@@ -345,13 +480,13 @@
     ]
    },
    {
-    "id": 8,
+    "id": 39,
     "type": "stat",
-    "title": "management / restarts 1h",
+    "title": "management / Restarts 1h",
     "gridPos": {
-     "x": 12,
-     "y": 1,
-     "w": 2,
+     "x": 8,
+     "y": 6,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -404,13 +539,13 @@
     ]
    },
    {
-    "id": 9,
+    "id": 40,
     "type": "stat",
-    "title": "management / worst disk",
+    "title": "management / Worst Disk %",
     "gridPos": {
-     "x": 14,
-     "y": 1,
-     "w": 2,
+     "x": 12,
+     "y": 6,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -463,13 +598,144 @@
     ]
    },
    {
-    "id": 10,
+    "id": 41,
     "type": "stat",
-    "title": "development / nodes ready",
+    "title": "management / CPU %",
     "gridPos": {
      "x": 16,
-     "y": 1,
-     "w": 2,
+     "y": 6,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 75
+        },
+        {
+         "color": "red",
+         "value": 85
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "100*(1-avg(rate(node_cpu_seconds_total{mode=\"idle\",cluster=\"\"}[5m])))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 42,
+    "type": "stat",
+    "title": "management / Memory %",
+    "gridPos": {
+     "x": 20,
+     "y": 6,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 75
+        },
+        {
+         "color": "red",
+         "value": 85
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "100*(1-sum(node_memory_MemAvailable_bytes{cluster=\"\"})/sum(node_memory_MemTotal_bytes{cluster=\"\"}))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 43,
+    "type": "row",
+    "title": "development at a glance",
+    "gridPos": {
+     "x": 0,
+     "y": 10,
+     "w": 24,
+     "h": 1
+    },
+    "collapsed": false,
+    "panels": []
+   },
+   {
+    "id": 44,
+    "type": "stat",
+    "title": "development / Nodes Ready",
+    "gridPos": {
+     "x": 0,
+     "y": 11,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -487,7 +753,8 @@
          "value": null
         }
        ]
-      }
+      },
+      "decimals": 0
      },
      "overrides": []
     },
@@ -513,13 +780,13 @@
     ]
    },
    {
-    "id": 11,
+    "id": 45,
     "type": "stat",
-    "title": "development / pods running",
+    "title": "development / Pods Running",
     "gridPos": {
-     "x": 18,
-     "y": 1,
-     "w": 2,
+     "x": 4,
+     "y": 11,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -537,7 +804,8 @@
          "value": null
         }
        ]
-      }
+      },
+      "decimals": 0
      },
      "overrides": []
     },
@@ -563,13 +831,13 @@
     ]
    },
    {
-    "id": 12,
+    "id": 46,
     "type": "stat",
-    "title": "development / restarts 1h",
+    "title": "development / Restarts 1h",
     "gridPos": {
-     "x": 20,
-     "y": 1,
-     "w": 2,
+     "x": 8,
+     "y": 11,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -622,13 +890,13 @@
     ]
    },
    {
-    "id": 13,
+    "id": 47,
     "type": "stat",
-    "title": "development / worst disk",
+    "title": "development / Worst Disk %",
     "gridPos": {
-     "x": 22,
-     "y": 1,
-     "w": 2,
+     "x": 12,
+     "y": 11,
+     "w": 4,
      "h": 4
     },
     "datasource": {
@@ -681,12 +949,130 @@
     ]
    },
    {
+    "id": 48,
+    "type": "stat",
+    "title": "development / CPU %",
+    "gridPos": {
+     "x": 16,
+     "y": 11,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 75
+        },
+        {
+         "color": "red",
+         "value": 85
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "100*(1-avg(rate(node_cpu_seconds_total{mode=\"idle\",cluster=\"development\"}[5m])))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 49,
+    "type": "stat",
+    "title": "development / Memory %",
+    "gridPos": {
+     "x": 20,
+     "y": 11,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 75
+        },
+        {
+         "color": "red",
+         "value": 85
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "100*(1-sum(node_memory_MemAvailable_bytes{cluster=\"development\"})/sum(node_memory_MemTotal_bytes{cluster=\"development\"}))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
     "id": 14,
     "type": "row",
     "title": "Trends (all clusters)",
     "gridPos": {
      "x": 0,
-     "y": 5,
+     "y": 15,
      "w": 24,
      "h": 1
     },
@@ -699,7 +1085,7 @@
     "title": "CPU % per cluster",
     "gridPos": {
      "x": 0,
-     "y": 6,
+     "y": 16,
      "w": 8,
      "h": 8
     },
@@ -766,7 +1152,7 @@
     "title": "Memory % per cluster",
     "gridPos": {
      "x": 8,
-     "y": 6,
+     "y": 16,
      "w": 8,
      "h": 8
     },
@@ -833,7 +1219,7 @@
     "title": "Pod restarts (1h window)",
     "gridPos": {
      "x": 16,
-     "y": 6,
+     "y": 16,
      "w": 8,
      "h": 8
     },
@@ -898,7 +1284,7 @@
     "title": "Capacity: disk per node",
     "gridPos": {
      "x": 0,
-     "y": 14,
+     "y": 24,
      "w": 24,
      "h": 1
     },
@@ -911,7 +1297,7 @@
     "title": "Root filesystem usage % (eviction at ~85%)",
     "gridPos": {
      "x": 0,
-     "y": 15,
+     "y": 25,
      "w": 24,
      "h": 9
     },
@@ -998,7 +1384,7 @@
     "title": "Alerts and logs",
     "gridPos": {
      "x": 0,
-     "y": 24,
+     "y": 34,
      "w": 24,
      "h": 1
     },
@@ -1011,7 +1397,7 @@
     "title": "Firing alerts (non-Watchdog; empty = healthy)",
     "gridPos": {
      "x": 0,
-     "y": 25,
+     "y": 35,
      "w": 8,
      "h": 8
     },
@@ -1067,7 +1453,7 @@
     "title": "Log throughput per cluster",
     "gridPos": {
      "x": 8,
-     "y": 25,
+     "y": 35,
      "w": 8,
      "h": 8
     },
@@ -1125,7 +1511,7 @@
     "title": "Error log lines (5m) per cluster",
     "gridPos": {
      "x": 16,
-     "y": 25,
+     "y": 35,
      "w": 8,
      "h": 8
     },
@@ -1183,7 +1569,7 @@
     "title": "RDS (CloudWatch)",
     "gridPos": {
      "x": 0,
-     "y": 33,
+     "y": 43,
      "w": 24,
      "h": 1
     },
@@ -1196,7 +1582,7 @@
     "title": "RDS CPU %",
     "gridPos": {
      "x": 0,
-     "y": 34,
+     "y": 44,
      "w": 6,
      "h": 8
     },
@@ -1274,7 +1660,7 @@
     "title": "RDS connections",
     "gridPos": {
      "x": 6,
-     "y": 34,
+     "y": 44,
      "w": 6,
      "h": 8
     },
@@ -1350,7 +1736,7 @@
     "title": "RDS free storage",
     "gridPos": {
      "x": 12,
-     "y": 34,
+     "y": 44,
      "w": 6,
      "h": 8
     },
@@ -1426,7 +1812,7 @@
     "title": "RDS freeable memory",
     "gridPos": {
      "x": 18,
-     "y": 34,
+     "y": 44,
      "w": 6,
      "h": 8
     },
