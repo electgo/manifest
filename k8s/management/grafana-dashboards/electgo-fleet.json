@@ -1,0 +1,1506 @@
+{
+ "dashboard": {
+  "uid": "electgo-fleet",
+  "title": "ElectGo Fleet Overview",
+  "tags": [
+   "electgo",
+   "fleet"
+  ],
+  "timezone": "browser",
+  "refresh": "1m",
+  "time": {
+   "from": "now-6h",
+   "to": "now"
+  },
+  "panels": [
+   {
+    "id": 1,
+    "type": "row",
+    "title": "Fleet at a glance",
+    "gridPos": {
+     "x": 0,
+     "y": 0,
+     "w": 24,
+     "h": 1
+    },
+    "collapsed": false,
+    "panels": []
+   },
+   {
+    "id": 2,
+    "type": "stat",
+    "title": "production / nodes ready",
+    "gridPos": {
+     "x": 0,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        }
+       ]
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "prometheus"
+      }
+     }
+    ]
+   },
+   {
+    "id": 3,
+    "type": "stat",
+    "title": "production / pods running",
+    "gridPos": {
+     "x": 2,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        }
+       ]
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(kube_pod_status_phase{phase=\"Running\"})",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "prometheus"
+      }
+     }
+    ]
+   },
+   {
+    "id": 4,
+    "type": "stat",
+    "title": "production / restarts 1h",
+    "gridPos": {
+     "x": 4,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 3
+        },
+        {
+         "color": "red",
+         "value": 10
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(increase(kube_pod_container_status_restarts_total[1h]))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "prometheus"
+      }
+     }
+    ]
+   },
+   {
+    "id": 5,
+    "type": "stat",
+    "title": "production / worst disk",
+    "gridPos": {
+     "x": 6,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 75
+        },
+        {
+         "color": "red",
+         "value": 85
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "max(100*(1-node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\"}/node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\"}))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "prometheus"
+      }
+     }
+    ]
+   },
+   {
+    "id": 6,
+    "type": "stat",
+    "title": "management / nodes ready",
+    "gridPos": {
+     "x": 8,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        }
+       ]
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\",cluster=\"\"})",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 7,
+    "type": "stat",
+    "title": "management / pods running",
+    "gridPos": {
+     "x": 10,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        }
+       ]
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(kube_pod_status_phase{phase=\"Running\",cluster=\"\"})",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 8,
+    "type": "stat",
+    "title": "management / restarts 1h",
+    "gridPos": {
+     "x": 12,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 3
+        },
+        {
+         "color": "red",
+         "value": 10
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(increase(kube_pod_container_status_restarts_total{cluster=\"\"}[1h]))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 9,
+    "type": "stat",
+    "title": "management / worst disk",
+    "gridPos": {
+     "x": 14,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 75
+        },
+        {
+         "color": "red",
+         "value": 85
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "max(100*(1-node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\",cluster=\"\"}/node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\",cluster=\"\"}))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 10,
+    "type": "stat",
+    "title": "development / nodes ready",
+    "gridPos": {
+     "x": 16,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        }
+       ]
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\",cluster=\"development\"})",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 11,
+    "type": "stat",
+    "title": "development / pods running",
+    "gridPos": {
+     "x": 18,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        }
+       ]
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(kube_pod_status_phase{phase=\"Running\",cluster=\"development\"})",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 12,
+    "type": "stat",
+    "title": "development / restarts 1h",
+    "gridPos": {
+     "x": 20,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 3
+        },
+        {
+         "color": "red",
+         "value": 10
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(increase(kube_pod_container_status_restarts_total{cluster=\"development\"}[1h]))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 13,
+    "type": "stat",
+    "title": "development / worst disk",
+    "gridPos": {
+     "x": 22,
+     "y": 1,
+     "w": 2,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 75
+        },
+        {
+         "color": "red",
+         "value": 85
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "none",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "max(100*(1-node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\",cluster=\"development\"}/node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\",cluster=\"development\"}))",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 14,
+    "type": "row",
+    "title": "Trends (all clusters)",
+    "gridPos": {
+     "x": 0,
+     "y": 5,
+     "w": 24,
+     "h": 1
+    },
+    "collapsed": false,
+    "panels": []
+   },
+   {
+    "id": 15,
+    "type": "timeseries",
+    "title": "CPU % per cluster",
+    "gridPos": {
+     "x": 0,
+     "y": 6,
+     "w": 8,
+     "h": 8
+    },
+    "datasource": {
+     "type": "datasource",
+     "uid": "-- Mixed --"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      },
+      "max": 100,
+      "min": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "100*(1-avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
+      "legendFormat": "production",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "prometheus"
+      }
+     },
+     {
+      "refId": "B",
+      "expr": "100*(1-avg(rate(node_cpu_seconds_total{mode=\"idle\",cluster=\"\"}[5m])))",
+      "legendFormat": "management",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     },
+     {
+      "refId": "C",
+      "expr": "100*(1-avg(rate(node_cpu_seconds_total{mode=\"idle\",cluster=\"development\"}[5m])))",
+      "legendFormat": "development",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 16,
+    "type": "timeseries",
+    "title": "Memory % per cluster",
+    "gridPos": {
+     "x": 8,
+     "y": 6,
+     "w": 8,
+     "h": 8
+    },
+    "datasource": {
+     "type": "datasource",
+     "uid": "-- Mixed --"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      },
+      "max": 100,
+      "min": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "100*(1-sum(node_memory_MemAvailable_bytes)/sum(node_memory_MemTotal_bytes))",
+      "legendFormat": "production",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "prometheus"
+      }
+     },
+     {
+      "refId": "B",
+      "expr": "100*(1-sum(node_memory_MemAvailable_bytes{cluster=\"\"})/sum(node_memory_MemTotal_bytes{cluster=\"\"}))",
+      "legendFormat": "management",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     },
+     {
+      "refId": "C",
+      "expr": "100*(1-sum(node_memory_MemAvailable_bytes{cluster=\"development\"})/sum(node_memory_MemTotal_bytes{cluster=\"development\"}))",
+      "legendFormat": "development",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 17,
+    "type": "timeseries",
+    "title": "Pod restarts (1h window)",
+    "gridPos": {
+     "x": 16,
+     "y": 6,
+     "w": 8,
+     "h": 8
+    },
+    "datasource": {
+     "type": "datasource",
+     "uid": "-- Mixed --"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(increase(kube_pod_container_status_restarts_total[1h]))",
+      "legendFormat": "production",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "prometheus"
+      }
+     },
+     {
+      "refId": "B",
+      "expr": "sum(increase(kube_pod_container_status_restarts_total{cluster=\"\"}[1h]))",
+      "legendFormat": "management",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     },
+     {
+      "refId": "C",
+      "expr": "sum(increase(kube_pod_container_status_restarts_total{cluster=\"development\"}[1h]))",
+      "legendFormat": "development",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 18,
+    "type": "row",
+    "title": "Capacity: disk per node",
+    "gridPos": {
+     "x": 0,
+     "y": 14,
+     "w": 24,
+     "h": 1
+    },
+    "collapsed": false,
+    "panels": []
+   },
+   {
+    "id": 19,
+    "type": "timeseries",
+    "title": "Root filesystem usage % (eviction at ~85%)",
+    "gridPos": {
+     "x": 0,
+     "y": 15,
+     "w": 24,
+     "h": 9
+    },
+    "datasource": {
+     "type": "datasource",
+     "uid": "-- Mixed --"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never",
+       "thresholdsStyle": {
+        "mode": "line"
+       }
+      },
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 75
+        },
+        {
+         "color": "red",
+         "value": 85
+        }
+       ]
+      },
+      "max": 100,
+      "min": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "100*(1-node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\"}/node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\"})",
+      "legendFormat": "production {{instance}}",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "prometheus"
+      }
+     },
+     {
+      "refId": "B",
+      "expr": "100*(1-node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\",cluster=\"\"}/node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\",cluster=\"\"})",
+      "legendFormat": "management {{instance}}",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     },
+     {
+      "refId": "C",
+      "expr": "100*(1-node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\",cluster=\"development\"}/node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|rootfs\",cluster=\"development\"})",
+      "legendFormat": "development {{instance}}",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 20,
+    "type": "row",
+    "title": "Alerts and logs",
+    "gridPos": {
+     "x": 0,
+     "y": 24,
+     "w": 24,
+     "h": 1
+    },
+    "collapsed": false,
+    "panels": []
+   },
+   {
+    "id": 21,
+    "type": "timeseries",
+    "title": "Firing alerts (non-Watchdog; empty = healthy)",
+    "gridPos": {
+     "x": 0,
+     "y": 25,
+     "w": 8,
+     "h": 8
+    },
+    "datasource": {
+     "type": "datasource",
+     "uid": "-- Mixed --"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "ALERTS{alertstate=\"firing\",alertname!=\"Watchdog\"}",
+      "legendFormat": "prod: {{alertname}} ({{severity}})",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "prometheus"
+      }
+     },
+     {
+      "refId": "B",
+      "expr": "ALERTS{alertstate=\"firing\",alertname!=\"Watchdog\"}",
+      "legendFormat": "{{cluster}}: {{alertname}} ({{severity}})",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 22,
+    "type": "timeseries",
+    "title": "Log throughput per cluster",
+    "gridPos": {
+     "x": 8,
+     "y": 25,
+     "w": 8,
+     "h": 8
+    },
+    "datasource": {
+     "type": "datasource",
+     "uid": "-- Mixed --"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "Bps",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum by (cluster) (bytes_rate({cluster=\"production\"}[5m]))",
+      "legendFormat": "{{cluster}}",
+      "datasource": {
+       "type": "loki",
+       "uid": "loki"
+      },
+      "queryType": "range"
+     },
+     {
+      "refId": "B",
+      "expr": "sum by (cluster) (bytes_rate({cluster=~\".+\"}[5m]))",
+      "legendFormat": "{{cluster}}",
+      "datasource": {
+       "type": "loki",
+       "uid": "loki-mgmt"
+      },
+      "queryType": "range"
+     }
+    ]
+   },
+   {
+    "id": 23,
+    "type": "timeseries",
+    "title": "Error log lines (5m) per cluster",
+    "gridPos": {
+     "x": 16,
+     "y": 25,
+     "w": 8,
+     "h": 8
+    },
+    "datasource": {
+     "type": "datasource",
+     "uid": "-- Mixed --"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(count_over_time({cluster=\"production\"} |~ `(?i)(error|fatal|panic)` [5m]))",
+      "legendFormat": "production",
+      "datasource": {
+       "type": "loki",
+       "uid": "loki"
+      },
+      "queryType": "range"
+     },
+     {
+      "refId": "B",
+      "expr": "sum by (cluster) (count_over_time({cluster=~\".+\"} |~ `(?i)(error|fatal|panic)` [5m]))",
+      "legendFormat": "{{cluster}}",
+      "datasource": {
+       "type": "loki",
+       "uid": "loki-mgmt"
+      },
+      "queryType": "range"
+     }
+    ]
+   },
+   {
+    "id": 24,
+    "type": "row",
+    "title": "RDS (CloudWatch)",
+    "gridPos": {
+     "x": 0,
+     "y": 33,
+     "w": 24,
+     "h": 1
+    },
+    "collapsed": false,
+    "panels": []
+   },
+   {
+    "id": 25,
+    "type": "timeseries",
+    "title": "RDS CPU %",
+    "gridPos": {
+     "x": 0,
+     "y": 34,
+     "w": 6,
+     "h": 8
+    },
+    "datasource": {
+     "type": "cloudwatch",
+     "uid": "cloudwatch"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "percent",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      },
+      "max": 100,
+      "min": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "datasource": {
+       "type": "cloudwatch",
+       "uid": "cloudwatch"
+      },
+      "queryMode": "Metrics",
+      "metricQueryType": 0,
+      "metricEditorMode": 0,
+      "namespace": "AWS/RDS",
+      "metricName": "CPUUtilization",
+      "dimensions": {
+       "DBInstanceIdentifier": "electgo-prod-mysql"
+      },
+      "statistic": "Average",
+      "region": "default",
+      "period": "",
+      "label": "electgo-prod-mysql"
+     },
+     {
+      "refId": "B",
+      "datasource": {
+       "type": "cloudwatch",
+       "uid": "cloudwatch"
+      },
+      "queryMode": "Metrics",
+      "metricQueryType": 0,
+      "metricEditorMode": 0,
+      "namespace": "AWS/RDS",
+      "metricName": "CPUUtilization",
+      "dimensions": {
+       "DBInstanceIdentifier": "electgo-prod-postgresql"
+      },
+      "statistic": "Average",
+      "region": "default",
+      "period": "",
+      "label": "electgo-prod-postgresql"
+     }
+    ]
+   },
+   {
+    "id": 26,
+    "type": "timeseries",
+    "title": "RDS connections",
+    "gridPos": {
+     "x": 6,
+     "y": 34,
+     "w": 6,
+     "h": 8
+    },
+    "datasource": {
+     "type": "cloudwatch",
+     "uid": "cloudwatch"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "datasource": {
+       "type": "cloudwatch",
+       "uid": "cloudwatch"
+      },
+      "queryMode": "Metrics",
+      "metricQueryType": 0,
+      "metricEditorMode": 0,
+      "namespace": "AWS/RDS",
+      "metricName": "DatabaseConnections",
+      "dimensions": {
+       "DBInstanceIdentifier": "electgo-prod-mysql"
+      },
+      "statistic": "Average",
+      "region": "default",
+      "period": "",
+      "label": "electgo-prod-mysql"
+     },
+     {
+      "refId": "B",
+      "datasource": {
+       "type": "cloudwatch",
+       "uid": "cloudwatch"
+      },
+      "queryMode": "Metrics",
+      "metricQueryType": 0,
+      "metricEditorMode": 0,
+      "namespace": "AWS/RDS",
+      "metricName": "DatabaseConnections",
+      "dimensions": {
+       "DBInstanceIdentifier": "electgo-prod-postgresql"
+      },
+      "statistic": "Average",
+      "region": "default",
+      "period": "",
+      "label": "electgo-prod-postgresql"
+     }
+    ]
+   },
+   {
+    "id": 27,
+    "type": "timeseries",
+    "title": "RDS free storage",
+    "gridPos": {
+     "x": 12,
+     "y": 34,
+     "w": 6,
+     "h": 8
+    },
+    "datasource": {
+     "type": "cloudwatch",
+     "uid": "cloudwatch"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "bytes",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "datasource": {
+       "type": "cloudwatch",
+       "uid": "cloudwatch"
+      },
+      "queryMode": "Metrics",
+      "metricQueryType": 0,
+      "metricEditorMode": 0,
+      "namespace": "AWS/RDS",
+      "metricName": "FreeStorageSpace",
+      "dimensions": {
+       "DBInstanceIdentifier": "electgo-prod-mysql"
+      },
+      "statistic": "Minimum",
+      "region": "default",
+      "period": "",
+      "label": "electgo-prod-mysql"
+     },
+     {
+      "refId": "B",
+      "datasource": {
+       "type": "cloudwatch",
+       "uid": "cloudwatch"
+      },
+      "queryMode": "Metrics",
+      "metricQueryType": 0,
+      "metricEditorMode": 0,
+      "namespace": "AWS/RDS",
+      "metricName": "FreeStorageSpace",
+      "dimensions": {
+       "DBInstanceIdentifier": "electgo-prod-postgresql"
+      },
+      "statistic": "Minimum",
+      "region": "default",
+      "period": "",
+      "label": "electgo-prod-postgresql"
+     }
+    ]
+   },
+   {
+    "id": 28,
+    "type": "timeseries",
+    "title": "RDS freeable memory",
+    "gridPos": {
+     "x": 18,
+     "y": 34,
+     "w": 6,
+     "h": 8
+    },
+    "datasource": {
+     "type": "cloudwatch",
+     "uid": "cloudwatch"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "bytes",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "datasource": {
+       "type": "cloudwatch",
+       "uid": "cloudwatch"
+      },
+      "queryMode": "Metrics",
+      "metricQueryType": 0,
+      "metricEditorMode": 0,
+      "namespace": "AWS/RDS",
+      "metricName": "FreeableMemory",
+      "dimensions": {
+       "DBInstanceIdentifier": "electgo-prod-mysql"
+      },
+      "statistic": "Minimum",
+      "region": "default",
+      "period": "",
+      "label": "electgo-prod-mysql"
+     },
+     {
+      "refId": "B",
+      "datasource": {
+       "type": "cloudwatch",
+       "uid": "cloudwatch"
+      },
+      "queryMode": "Metrics",
+      "metricQueryType": 0,
+      "metricEditorMode": 0,
+      "namespace": "AWS/RDS",
+      "metricName": "FreeableMemory",
+      "dimensions": {
+       "DBInstanceIdentifier": "electgo-prod-postgresql"
+      },
+      "statistic": "Minimum",
+      "region": "default",
+      "period": "",
+      "label": "electgo-prod-postgresql"
+     }
+    ]
+   }
+  ],
+  "schemaVersion": 39,
+  "editable": true
+ },
+ "meta": {
+  "generated": "2026-06-12 by gen_dashboards.py"
+ }
+}

@@ -129,6 +129,14 @@ spec:
                   uid: loki-mgmt
                   url: http://loki.monitoring.svc:3100
                   access: proxy
+                # RDS/AWS metrics; auth via mgmt node instance role (inline
+                # policy grafana-cloudwatch-metrics-read, metrics-only).
+                - name: CloudWatch
+                  type: cloudwatch
+                  uid: cloudwatch
+                  jsonData:
+                    authType: default
+                    defaultRegion: ap-southeast-3
           sidecar:
             dashboards:
               multicluster:

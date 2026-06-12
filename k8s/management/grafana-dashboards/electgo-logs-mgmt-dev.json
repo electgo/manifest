@@ -1,0 +1,200 @@
+{
+ "dashboard": {
+  "uid": "electgo-logs-mgmt-dev",
+  "title": "Logs / Mgmt + Dev",
+  "tags": [
+   "electgo",
+   "logs"
+  ],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+   "from": "now-3h",
+   "to": "now"
+  },
+  "templating": {
+   "list": [
+    {
+     "name": "cluster",
+     "type": "query",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki-mgmt"
+     },
+     "refresh": 2,
+     "query": "label_values(cluster)",
+     "current": {
+      "text": "management",
+      "value": "management"
+     },
+     "includeAll": false,
+     "multi": false,
+     "label": "Cluster"
+    },
+    {
+     "name": "namespace",
+     "type": "query",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki-mgmt"
+     },
+     "refresh": 2,
+     "query": "label_values({cluster=\"$cluster\"}, namespace)",
+     "current": {
+      "text": "All",
+      "value": "$__all"
+     },
+     "includeAll": true,
+     "multi": true,
+     "label": "Namespace"
+    },
+    {
+     "name": "search",
+     "type": "textbox",
+     "current": {
+      "text": "",
+      "value": ""
+     },
+     "label": "Search",
+     "query": ""
+    }
+   ]
+  },
+  "panels": [
+   {
+    "id": 1,
+    "type": "timeseries",
+    "title": "Log volume by namespace",
+    "gridPos": {
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 7
+    },
+    "datasource": {
+     "type": "loki",
+     "uid": "loki-mgmt"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "Bps",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum by (namespace)(bytes_rate({cluster=\"$cluster\",namespace=~\"$namespace\"}[5m]))",
+      "legendFormat": "{{namespace}}",
+      "datasource": {
+       "type": "loki",
+       "uid": "loki-mgmt"
+      },
+      "queryType": "range"
+     }
+    ]
+   },
+   {
+    "id": 2,
+    "type": "timeseries",
+    "title": "Error lines (5m) by namespace",
+    "gridPos": {
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 7
+    },
+    "datasource": {
+     "type": "loki",
+     "uid": "loki-mgmt"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum by (namespace)(count_over_time({cluster=\"$cluster\",namespace=~\"$namespace\"} |~ `(?i)(error|fatal|panic)` [5m]))",
+      "legendFormat": "{{namespace}}",
+      "datasource": {
+       "type": "loki",
+       "uid": "loki-mgmt"
+      },
+      "queryType": "range"
+     }
+    ]
+   },
+   {
+    "id": 3,
+    "type": "logs",
+    "title": "Logs",
+    "gridPos": {
+     "x": 0,
+     "y": 7,
+     "w": 24,
+     "h": 16
+    },
+    "datasource": {
+     "type": "loki",
+     "uid": "loki-mgmt"
+    },
+    "options": {
+     "showTime": true,
+     "wrapLogMessage": true,
+     "sortOrder": "Descending",
+     "enableLogDetails": true,
+     "dedupStrategy": "none"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "{cluster=\"$cluster\",namespace=~\"$namespace\"} |~ `$search`",
+      "datasource": {
+       "type": "loki",
+       "uid": "loki-mgmt"
+      },
+      "queryType": "range"
+     }
+    ]
+   }
+  ],
+  "schemaVersion": 39,
+  "editable": true
+ },
+ "meta": {
+  "generated": "2026-06-12 by gen_dashboards.py"
+ }
+}
