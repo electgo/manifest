@@ -338,7 +338,7 @@ spec:
                               datasource:
                                 type: loki
                                 uid: loki
-                              expr: sum by (cluster, namespace) (count_over_time({namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"} |~ "(?i)(access denied for user|denied for user|password authentication failed for user|role .* does not exist|ER_ACCESS_DENIED|ER_ACCESS_DENIED_ERROR|SQLSTATE\\[[^]]+\\].*access denied|permission denied (for|to) (database|schema|table|relation|sequence|create|role))" != "manifest cache hit" [10m]))
+                              expr: sum by (cluster, namespace) (count_over_time({cluster=~".+", namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"} |~ "(?i)(access denied for user|denied for user|password authentication failed for user|role .* does not exist|ER_ACCESS_DENIED|ER_ACCESS_DENIED_ERROR|SQLSTATE\\[[^]]+\\].*access denied|permission denied (for|to) (database|schema|table|relation|sequence|create|role))" != "manifest cache hit" [10m]))
                               instant: true
                               intervalMs: 1000
                               maxDataPoints: 43200
@@ -393,7 +393,7 @@ spec:
                               datasource:
                                 type: loki
                                 uid: loki
-                              expr: sum by (cluster, namespace) (count_over_time({namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"} |~ "(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)" != "manifest cache hit" [10m]))
+                              expr: sum by (cluster, namespace) (count_over_time({cluster=~".+", namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"} |~ "(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)" != "manifest cache hit" [10m]))
                               instant: true
                               intervalMs: 1000
                               maxDataPoints: 43200
@@ -448,7 +448,7 @@ spec:
                               datasource:
                                 type: loki
                                 uid: loki
-                              expr: sum by (cluster, namespace) (rate({namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"} |~ "(?i)(error|fatal|panic|exception|traceback)" != "manifest cache hit" [5m]))
+                              expr: sum by (cluster, namespace) (rate({cluster=~".+", namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"} |~ "(?i)(error|fatal|panic|exception|traceback)" != "manifest cache hit" [5m]))
                               instant: true
                               intervalMs: 1000
                               maxDataPoints: 43200
@@ -575,6 +575,7 @@ spec:
               - name: Prometheus
                 type: prometheus
                 uid: prometheus
+                version: 2
                 url: http://mimir-gateway.monitoring.svc/prometheus
                 access: proxy
                 isDefault: true
@@ -584,6 +585,7 @@ spec:
               - name: Loki
                 type: loki
                 uid: loki
+                version: 2
                 url: http://loki.monitoring.svc:3100
                 access: proxy
                 jsonData:
@@ -591,11 +593,13 @@ spec:
               - name: Loki (mgmt)
                 type: loki
                 uid: loki-mgmt
+                version: 2
                 url: http://loki.monitoring.svc:3100
                 access: proxy
               - name: Tempo
                 type: tempo
                 uid: tempo
+                version: 2
                 url: http://tempo.monitoring.svc:3200
                 access: proxy
                 jsonData:
@@ -611,6 +615,7 @@ spec:
               - name: CloudWatch
                 type: cloudwatch
                 uid: cloudwatch
+                version: 2
                 jsonData:
                   authType: default
                   defaultRegion: ap-southeast-3
