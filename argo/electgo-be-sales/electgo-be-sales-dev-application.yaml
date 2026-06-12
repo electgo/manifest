@@ -22,7 +22,7 @@ spec:
         - name: env.config.SELLER_SERVICE_URL
           value: http://electgo-seller-center-be-dev.electgo-seller-center.svc.cluster.local:3031
         - name: env.config.USER_SERVICE_URL
-          value: http://electgo-be-user.marketplace.svc.cluster.local:3030
+          value: http://electgo-be-user.electgo-be-user.svc.cluster.local:3030
         - name: env.config.UTIL_SERVICE_URL
           value: http://electgo-be-utils.electgo-be-utils.svc.cluster.local:3202
         - name: secret.create

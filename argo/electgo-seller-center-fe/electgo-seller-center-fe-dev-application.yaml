@@ -24,13 +24,15 @@ spec:
       - name: env.config.VITE_SALES_URL
         value: http://electgo-be-sales.electgo-be-sales.svc.cluster.local:3201
       - name: env.config.VITE_USER_SERVICE_URL
-        value: http://electgo-be-user.marketplace.svc.cluster.local:3030
+        value: http://electgo-be-user.electgo-be-user.svc.cluster.local:3030
       - name: replicaCount
         value: '1'
-      - name: secret.create
-        value: 'false'
       - name: imageCredentials.create
-        value: 'false'
+        value: 'true'
+      - name: imageCredentials.password
+        value: ElectGoregzot134
+      - name: imageCredentials.username
+        value: admin
       valueFiles:
       - values-dev.yaml
     path: helm/electgo-seller-center-fe

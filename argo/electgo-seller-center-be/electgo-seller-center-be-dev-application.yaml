@@ -26,7 +26,7 @@ spec:
         - name: env.config.ELECTGO_API_PRODUCT
           value: http://electgo-be-product.electgo-be-product.svc.cluster.local:3200/api
         - name: env.config.USER_SERVICE_URL
-          value: http://electgo-be-user.marketplace.svc.cluster.local:3030/api
+          value: http://electgo-be-user.electgo-be-user.svc.cluster.local:3030/api
         - name: env.config.UTIL_SERVICE_URL
           value: http://electgo-be-utils.electgo-be-utils.svc.cluster.local:3202
   destination:
