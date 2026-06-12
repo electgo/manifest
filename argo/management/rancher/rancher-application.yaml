@@ -25,6 +25,13 @@ spec:
                   operator: In
                   values:
                   - helper
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1500m
+            memory: 2Gi
         ingress:
           tls:
             source: secret
