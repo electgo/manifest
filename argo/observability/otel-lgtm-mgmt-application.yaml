@@ -569,6 +569,10 @@ spec:
                     enabled: true
             prune: true
             deleteDatasources:
+              - name: Prometheus
+                orgId: 1
+              - name: Prometheus (prod)
+                orgId: 1
               - name: Alertmanager
                 orgId: 1
             additionalDataSources:
