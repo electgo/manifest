@@ -4,7 +4,7 @@ metadata:
   name: matomo
   namespace: argocd
 spec:
-  project: management
+  project: platform
   source:
     repoURL: https://github.com/electgo/manifest.git
     targetRevision: main

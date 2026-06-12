@@ -6,16 +6,37 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  description: Platform tooling (argocd image-updater, ARC, matomo analytics, etc.)
+  description: Platform control plane and shared services across clusters
   sourceRepos:
     - https://github.com/electgo/manifest
     - https://github.com/electgo/manifest.git
     - ghcr.io/actions/actions-runner-controller-charts
+    - https://kubernetes-sigs.github.io/external-dns/
+    - https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner
+    - https://releases.rancher.com/server-charts/alpha
   destinations:
     - server: https://kubernetes.default.svc
       namespace: argocd
+    - server: https://kubernetes.default.svc
+      namespace: cattle-system
+    - server: https://kubernetes.default.svc
+      namespace: database
+    - server: https://kubernetes.default.svc
+      namespace: external-dns
+    - server: https://kubernetes.default.svc
+      namespace: matomo
+    - server: https://kubernetes.default.svc
+      namespace: openproject
+    - server: https://kubernetes.default.svc
+      namespace: zitadel
+    - server: https://kubernetes.default.svc
+      namespace: zot
     - name: development
       namespace: argocd
+    - name: development
+      namespace: database
+    - name: development
+      namespace: nfs-subdir
     - name: production
       namespace: argocd
     - name: production
@@ -31,18 +52,8 @@ spec:
     - name: development
       namespace: arc-runners
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRole
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRoleBinding
-    - group: apiextensions.k8s.io
-      kind: CustomResourceDefinition
-    - group: admissionregistration.k8s.io
-      kind: MutatingWebhookConfiguration
-    - group: admissionregistration.k8s.io
-      kind: ValidatingWebhookConfiguration
+    - group: "*"
+      kind: "*"
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"

@@ -4,7 +4,7 @@ metadata:
   name: nfs-subdir-dev
   namespace: argocd
 spec:
-  project: management
+  project: platform
   destination:
     name: development
     namespace: nfs-subdir
