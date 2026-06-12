@@ -26,13 +26,9 @@ spec:
         - name: env.config.UTIL_SERVICE_URL
           value: http://electgo-be-utils.electgo-be-utils.svc.cluster.local:3202
         - name: secret.create
-          value: "true"
+          value: "false"
         - name: imageCredentials.create
           value: "false"
-        - name: env.secret.MONGODB_URI
-          value: "mongodb://sharedops:__REDACTED_SHAREDOPS_PASSWORD__@mongodb.database.svc.cluster.local:27017/electgo?authSource=admin"
-        - name: env.secret.KAFKA_PASSWORD
-          value: "__REDACTED_SHAREDOPS_PASSWORD__"
   destination:
     server: https://10.20.17.100:6443
     namespace: electgo-be-sales

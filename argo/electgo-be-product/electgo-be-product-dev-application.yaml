@@ -25,16 +25,6 @@ spec:
           value: "sharedops"
         - name: env.config.REDIS_HOST
           value: "redis.database.svc.cluster.local"
-        - name: env.secret.ELASTICSEARCH_PASSWORD
-          value: "__REDACTED_SHAREDOPS_PASSWORD__"
-        - name: env.secret.MONGODB_URI
-          value: "mongodb://sharedops:__REDACTED_SHAREDOPS_PASSWORD__@mongodb.database.svc.cluster.local:27017/electgo?authSource=admin"
-        - name: env.secret.REDIS_PASSWORD
-          value: "__REDACTED_SHAREDOPS_PASSWORD__"
-        - name: imageCredentials.password
-          value: "ElectGoregzot134"
-        - name: imageCredentials.username
-          value: "admin"
   destination:
     name: development
     namespace: electgo-be-product

@@ -29,8 +29,6 @@ spec:
         value: '1'
       - name: imageCredentials.create
         value: 'true'
-      - name: imageCredentials.password
-        value: ElectGoregzot134
       - name: imageCredentials.username
         value: admin
       valueFiles:
