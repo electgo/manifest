@@ -673,7 +673,7 @@ spec:
             structuredConfig:
               blocks_storage:
                 backend: s3
-                storage_prefix: electgo/observability/mimir/blocks
+                storage_prefix: electgoobservabilitymimirblocks
                 s3:
                   bucket_name: ${MIMIR_S3_BUCKET}
                   endpoint: s3.ap-southeast-3.amazonaws.com
@@ -682,7 +682,7 @@ spec:
                   secret_access_key: ${AWS_SECRET_ACCESS_KEY}
               alertmanager_storage:
                 backend: s3
-                storage_prefix: electgo/observability/mimir/alertmanager
+                storage_prefix: electgoobservabilitymimiralertmanager
                 s3:
                   bucket_name: ${MIMIR_S3_BUCKET}
                   endpoint: s3.ap-southeast-3.amazonaws.com
@@ -691,7 +691,7 @@ spec:
                   secret_access_key: ${AWS_SECRET_ACCESS_KEY}
               ruler_storage:
                 backend: s3
-                storage_prefix: electgo/observability/mimir/ruler
+                storage_prefix: electgoobservabilitymimirruler
                 s3:
                   bucket_name: ${MIMIR_S3_BUCKET}
                   endpoint: s3.ap-southeast-3.amazonaws.com
@@ -838,7 +838,7 @@ spec:
                 loki.process "alerts" {
                   forward_to = [loki.write.local.receiver]
                   stage.match {
-                    selector = "{namespace=~\".+\"} |~ \"(?i)(error|fatal|panic|exception|traceback)\" != \"manifest cache hit\""
+                    selector = `{namespace=~".+"} |~ "(?i)(error|fatal|panic|exception|traceback)" != "manifest cache hit"`
                     stage.metrics {
                       metric.counter {
                         name        = "log_app_errors_total"
@@ -849,7 +849,7 @@ spec:
                     }
                   }
                   stage.match {
-                    selector = "{namespace=~\".+\"} |~ \"(?i)(access denied for user|denied for user|password authentication failed for user|role .* does not exist|ER_ACCESS_DENIED|ER_ACCESS_DENIED_ERROR|SQLSTATE\\[[^]]+\\].*access denied|permission denied (for|to) (database|schema|table|relation|sequence|create|role))\" != \"manifest cache hit\""
+                    selector = `{namespace=~".+"} |~ "(?i)(access denied for user|denied for user|password authentication failed for user|role .* does not exist|ER_ACCESS_DENIED|ER_ACCESS_DENIED_ERROR|SQLSTATE\[[^]]+\].*access denied|permission denied (for|to) (database|schema|table|relation|sequence|create|role))" != "manifest cache hit"`
                     stage.metrics {
                       metric.counter {
                         name        = "log_db_permission_errors_total"
@@ -860,7 +860,7 @@ spec:
                     }
                   }
                   stage.match {
-                    selector = "{namespace=~\".+\"} |~ \"(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)\" != \"manifest cache hit\""
+                    selector = `{namespace=~".+"} |~ "(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)" != "manifest cache hit"`
                     stage.metrics {
                       metric.counter {
                         name        = "log_db_connection_errors_total"

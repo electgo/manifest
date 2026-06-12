@@ -252,7 +252,7 @@ spec:
                   forward_to = [loki.write.mgmt.receiver]
 
                   stage.match {
-                    selector = "{namespace=~\".+\"} |~ \"(?i)(error|fatal|panic|exception|traceback)\" != \"manifest cache hit\""
+                    selector = `{namespace=~".+"} |~ "(?i)(error|fatal|panic|exception|traceback)" != "manifest cache hit"`
                     stage.metrics {
                       metric.counter {
                         name        = "log_app_errors_total"
@@ -264,7 +264,7 @@ spec:
                   }
 
                   stage.match {
-                    selector = "{namespace=~\".+\"} |~ \"(?i)(access denied for user|denied for user|password authentication failed for user|role .* does not exist|ER_ACCESS_DENIED|ER_ACCESS_DENIED_ERROR|SQLSTATE\\[[^]]+\\].*access denied|permission denied (for|to) (database|schema|table|relation|sequence|create|role))\" != \"manifest cache hit\""
+                    selector = `{namespace=~".+"} |~ "(?i)(access denied for user|denied for user|password authentication failed for user|role .* does not exist|ER_ACCESS_DENIED|ER_ACCESS_DENIED_ERROR|SQLSTATE\[[^]]+\].*access denied|permission denied (for|to) (database|schema|table|relation|sequence|create|role))" != "manifest cache hit"`
                     stage.metrics {
                       metric.counter {
                         name        = "log_db_permission_errors_total"
@@ -276,7 +276,7 @@ spec:
                   }
 
                   stage.match {
-                    selector = "{namespace=~\".+\"} |~ \"(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)\" != \"manifest cache hit\""
+                    selector = `{namespace=~".+"} |~ "(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)" != "manifest cache hit"`
                     stage.metrics {
                       metric.counter {
                         name        = "log_db_connection_errors_total"
