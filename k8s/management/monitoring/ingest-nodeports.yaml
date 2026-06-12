@@ -1,6 +1,6 @@
 # NodePort ingest endpoints for downstream Alloy agents.
 # Metrics remote-write to Mimir, logs push to Loki, traces push to Tempo.
-# SG: allow 30991/30311/30317/30318 only from dev/prod node SGs.
+# SG: allow 30990/30311/30317/30318 only from dev/prod node SGs.
 apiVersion: v1
 kind: Service
 metadata:
@@ -16,7 +16,7 @@ spec:
     - name: http-metrics
       port: 80
       targetPort: http-metrics
-      nodePort: 30991
+      nodePort: 30990
 ---
 apiVersion: v1
 kind: Service
