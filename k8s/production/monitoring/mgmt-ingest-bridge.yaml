@@ -1,0 +1,35 @@
+# Bridge from prod EKS to the mgmt Prometheus remote-write NodePort, so
+# alloy-prod can ship log-derived error counters to mgmt Prometheus (where
+# the email Alertmanager and the electgo.logs rules live). Targets static
+# mgmt node IPs; update the Endpoints when mgmt nodes change. SG: mgmt node
+# SG sg-07dd21f853f46a3de allows 30990 from prod node SG
+# sg-002a0ca20776af7f4.
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-mgmt-rw
+  namespace: monitoring
+spec:
+  ports:
+    - name: http-web
+      port: 9090
+      targetPort: 30990
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: prometheus-mgmt-rw
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 10.20.20.47
+      - ip: 10.20.20.133
+      - ip: 10.20.24.139
+      - ip: 10.20.28.67
+      - ip: 10.20.17.172
+      - ip: 10.20.27.78
+      - ip: 10.20.16.206
+      - ip: 10.20.30.185
+    ports:
+      - name: http-web
+        port: 30990

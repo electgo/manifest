@@ -77,12 +77,78 @@ spec:
                   clustering {
                     enabled = true
                   }
+                  forward_to = [loki.process.alerts.receiver]
+                }
+
+                // Error log lines -> Prometheus counters for the email
+                // Alertmanager (app/db error alerts). Logs pass through.
+                loki.process "alerts" {
                   forward_to = [loki.write.local.receiver]
+                  stage.match {
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(error|fatal|panic|exception|traceback)\""
+                    stage.metrics {
+                      metric.counter {
+                        name        = "log_app_errors_total"
+                        description = "count of error/fatal/panic log lines"
+                        action      = "inc"
+                        match_all   = true
+                      }
+                    }
+                  }
+                  stage.match {
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(permission denied|access denied|authentication failed|auth failed|not authorized|password authentication failed|denied for user|access denied for user|role .* does not exist|ER_ACCESS_DENIED)\""
+                    stage.metrics {
+                      metric.counter {
+                        name        = "log_db_permission_errors_total"
+                        description = "count of permission/auth denied log lines"
+                        action      = "inc"
+                        match_all   = true
+                      }
+                    }
+                  }
+                  stage.match {
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)\""
+                    stage.metrics {
+                      metric.counter {
+                        name        = "log_db_connection_errors_total"
+                        description = "count of connection failure log lines"
+                        action      = "inc"
+                        match_all   = true
+                      }
+                    }
+                  }
                 }
 
                 loki.write "local" {
                   endpoint {
                     url = "http://loki.monitoring.svc:3100/loki/api/v1/push"
+                  }
+                  external_labels = {
+                    cluster = "management",
+                  }
+                }
+
+                prometheus.scrape "self_logmetrics" {
+                  targets    = [{"__address__" = "127.0.0.1:12345", job = "alloy-log-metrics"}]
+                  forward_to = [prometheus.relabel.keep_logmetrics.receiver]
+                }
+
+                prometheus.relabel "keep_logmetrics" {
+                  rule {
+                    source_labels = ["__name__"]
+                    regex         = "loki_process_custom_log_(app|db_permission|db_connection)_errors_total"
+                    action        = "keep"
+                  }
+                  rule {
+                    regex  = "pod|instance|container|component_id|component_path|job"
+                    action = "labeldrop"
+                  }
+                  forward_to = [prometheus.remote_write.logmetrics.receiver]
+                }
+
+                prometheus.remote_write "logmetrics" {
+                  endpoint {
+                    url = "http://prometheus-kube-prometheus-prometheus.monitoring.svc:9090/api/v1/write"
                   }
                   external_labels = {
                     cluster = "management",
