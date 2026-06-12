@@ -226,7 +226,51 @@ spec:
                   clustering {
                     enabled = true
                   }
+                  forward_to = [loki.process.alerts.receiver]
+                }
+
+                // Turn error log lines into Prometheus counters so the
+                // existing email Alertmanager (via mgmt Prometheus rules)
+                // can alert on app errors and DB permission/connection
+                // errors. Logs still pass through to Loki unchanged.
+                loki.process "alerts" {
                   forward_to = [loki.write.mgmt.receiver]
+
+                  stage.match {
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(error|fatal|panic|exception|traceback)\""
+                    stage.metrics {
+                      metric.counter {
+                        name        = "log_app_errors_total"
+                        description = "count of error/fatal/panic log lines"
+                        action      = "inc"
+                        match_all   = true
+                      }
+                    }
+                  }
+
+                  stage.match {
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(permission denied|access denied|authentication failed|auth failed|not authorized|password authentication failed|denied for user|access denied for user|role .* does not exist|ER_ACCESS_DENIED)\""
+                    stage.metrics {
+                      metric.counter {
+                        name        = "log_db_permission_errors_total"
+                        description = "count of permission/auth denied log lines"
+                        action      = "inc"
+                        match_all   = true
+                      }
+                    }
+                  }
+
+                  stage.match {
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)\""
+                    stage.metrics {
+                      metric.counter {
+                        name        = "log_db_connection_errors_total"
+                        description = "count of connection failure log lines"
+                        action      = "inc"
+                        match_all   = true
+                      }
+                    }
+                  }
                 }
 
                 loki.write "mgmt" {
@@ -236,6 +280,26 @@ spec:
                   external_labels = {
                     cluster = "development",
                   }
+                }
+
+                // Scrape Alloy's own endpoint, keep only the log-derived
+                // counters, and remote-write them so Prometheus rules fire.
+                prometheus.scrape "self_logmetrics" {
+                  targets    = [{"__address__" = "127.0.0.1:12345", job = "alloy-log-metrics"}]
+                  forward_to = [prometheus.relabel.keep_logmetrics.receiver]
+                }
+
+                prometheus.relabel "keep_logmetrics" {
+                  rule {
+                    source_labels = ["__name__"]
+                    regex         = "loki_process_custom_log_(app|db_permission|db_connection)_errors_total"
+                    action        = "keep"
+                  }
+                  rule {
+                    regex  = "pod|instance|container|component_id|component_path|job"
+                    action = "labeldrop"
+                  }
+                  forward_to = [prometheus.remote_write.mgmt.receiver]
                 }
     - repoURL: https://prometheus-community.github.io/helm-charts
       chart: kube-state-metrics
