@@ -1,0 +1,695 @@
+{
+ "dashboard": {
+  "uid": "electgo-dev-cronjobs",
+  "title": "ElectGo Dev / Cronjobs & Jobs",
+  "tags": [
+   "electgo",
+   "development",
+   "cronjobs"
+  ],
+  "timezone": "browser",
+  "refresh": "1m",
+  "time": {
+   "from": "now-24h",
+   "to": "now"
+  },
+  "panels": [
+   {
+    "id": 1,
+    "type": "stat",
+    "title": "CronJobs",
+    "gridPos": {
+     "x": 0,
+     "y": 0,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "area",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "count(kube_cronjob_info{cluster=\"development\"})",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 2,
+    "type": "stat",
+    "title": "Suspended",
+    "gridPos": {
+     "x": 4,
+     "y": 0,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "#EAB839",
+         "value": 1
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "area",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(kube_cronjob_spec_suspend{cluster=\"development\"})",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 3,
+    "type": "stat",
+    "title": "Jobs failed 24h",
+    "gridPos": {
+     "x": 8,
+     "y": 0,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "red",
+         "value": 1
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "area",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(kube_job_status_failed{cluster=\"development\"}) or vector(0)",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 4,
+    "type": "stat",
+    "title": "Jobs active",
+    "gridPos": {
+     "x": 12,
+     "y": 0,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "area",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(kube_job_status_active{cluster=\"development\"}) or vector(0)",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 5,
+    "type": "stat",
+    "title": "Jobs succeeded 24h",
+    "gridPos": {
+     "x": 16,
+     "y": 0,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "area",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum(kube_job_status_succeeded{cluster=\"development\"}) or vector(0)",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 6,
+    "type": "stat",
+    "title": "Stale (no success 25h)",
+    "gridPos": {
+     "x": 20,
+     "y": 0,
+     "w": 4,
+     "h": 4
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "red",
+         "value": 1
+        }
+       ]
+      },
+      "decimals": 0
+     },
+     "overrides": []
+    },
+    "options": {
+     "reduceOptions": {
+      "calcs": [
+       "lastNotNull"
+      ]
+     },
+     "graphMode": "area",
+     "colorMode": "value"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "count((time()-kube_cronjob_status_last_successful_time{cluster=\"development\"})>90000) or vector(0)",
+      "instant": true,
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      }
+     }
+    ]
+   },
+   {
+    "id": 7,
+    "type": "row",
+    "title": "CronJob status table",
+    "gridPos": {
+     "x": 0,
+     "y": 4,
+     "w": 24,
+     "h": 1
+    },
+    "collapsed": false,
+    "panels": []
+   },
+   {
+    "id": 8,
+    "type": "table",
+    "title": "CronJobs (by namespace/cronjob)",
+    "gridPos": {
+     "x": 0,
+     "y": 5,
+     "w": 24,
+     "h": 9
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      },
+      "instant": true,
+      "format": "table",
+      "expr": "time() - kube_cronjob_status_last_successful_time{cluster=\"development\"}",
+      "legendFormat": "last success age"
+     },
+     {
+      "refId": "B",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      },
+      "instant": true,
+      "format": "table",
+      "expr": "kube_cronjob_spec_suspend{cluster=\"development\"}",
+      "legendFormat": "suspended"
+     }
+    ],
+    "transformations": [
+     {
+      "id": "joinByField",
+      "options": {
+       "byField": "cronjob",
+       "mode": "outer"
+      }
+     },
+     {
+      "id": "organize",
+      "options": {
+       "excludeByName": {
+        "Time 1": true,
+        "Time 2": true,
+        "__name__ 1": true,
+        "__name__ 2": true,
+        "Value #A": false,
+        "instance 1": true,
+        "instance 2": true,
+        "job 1": true,
+        "job 2": true,
+        "cluster 1": true,
+        "cluster 2": true,
+        "container 1": true,
+        "container 2": true,
+        "endpoint 1": true,
+        "endpoint 2": true,
+        "namespace 2": true,
+        "service 1": true,
+        "service 2": true,
+        "pod 1": true,
+        "pod 2": true,
+        "uid 1": true,
+        "uid 2": true
+       },
+       "renameByName": {
+        "Value #A": "last success age",
+        "Value #B": "suspended",
+        "namespace 1": "namespace"
+       }
+      }
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {
+      "custom": {
+       "align": "auto"
+      }
+     },
+     "overrides": [
+      {
+       "matcher": {
+        "id": "byName",
+        "options": "last success age"
+       },
+       "properties": [
+        {
+         "id": "unit",
+         "value": "s"
+        },
+        {
+         "id": "custom.cellOptions",
+         "value": {
+          "type": "color-background"
+         }
+        },
+        {
+         "id": "thresholds",
+         "value": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "#EAB839",
+            "value": 86400
+           },
+           {
+            "color": "red",
+            "value": 172800
+           }
+          ]
+         }
+        }
+       ]
+      },
+      {
+       "matcher": {
+        "id": "byName",
+        "options": "suspended"
+       },
+       "properties": [
+        {
+         "id": "custom.cellOptions",
+         "value": {
+          "type": "color-text"
+         }
+        },
+        {
+         "id": "thresholds",
+         "value": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "#EAB839",
+            "value": 1
+           }
+          ]
+         }
+        }
+       ]
+      },
+      {
+       "matcher": {
+        "id": "byName",
+        "options": "failed"
+       },
+       "properties": [
+        {
+         "id": "custom.cellOptions",
+         "value": {
+          "type": "color-background"
+         }
+        },
+        {
+         "id": "thresholds",
+         "value": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "red",
+            "value": 1
+           }
+          ]
+         }
+        }
+       ]
+      }
+     ]
+    },
+    "options": {
+     "showHeader": true,
+     "sortBy": [
+      {
+       "displayName": "last success age",
+       "desc": true
+      }
+     ]
+    }
+   },
+   {
+    "id": 9,
+    "type": "row",
+    "title": "Recent jobs and durations",
+    "gridPos": {
+     "x": 0,
+     "y": 14,
+     "w": 24,
+     "h": 1
+    },
+    "collapsed": false,
+    "panels": []
+   },
+   {
+    "id": 10,
+    "type": "timeseries",
+    "title": "Job run duration (completion - start)",
+    "gridPos": {
+     "x": 0,
+     "y": 15,
+     "w": 12,
+     "h": 8
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "s",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "(kube_job_status_completion_time{cluster=\"development\"} - kube_job_status_start_time{cluster=\"development\"})",
+      "legendFormat": "{{job_name}}",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      },
+      "instant": false
+     }
+    ]
+   },
+   {
+    "id": 11,
+    "type": "timeseries",
+    "title": "Failed jobs over time",
+    "gridPos": {
+     "x": 12,
+     "y": 15,
+     "w": 12,
+     "h": 8
+    },
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PBFA97CFB590B2093"
+    },
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none",
+      "custom": {
+       "fillOpacity": 8,
+       "showPoints": "never"
+      }
+     },
+     "overrides": []
+    },
+    "options": {
+     "legend": {
+      "displayMode": "list",
+      "placement": "bottom",
+      "showLegend": true
+     },
+     "tooltip": {
+      "mode": "multi",
+      "sort": "desc"
+     }
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "sum by (namespace)(kube_job_status_failed{cluster=\"development\"}) > 0",
+      "legendFormat": "{{namespace}}",
+      "datasource": {
+       "type": "prometheus",
+       "uid": "PBFA97CFB590B2093"
+      },
+      "instant": false
+     }
+    ]
+   },
+   {
+    "id": 12,
+    "type": "logs",
+    "title": "Logs from cronjob/job pods (errors)",
+    "gridPos": {
+     "x": 0,
+     "y": 23,
+     "w": 24,
+     "h": 10
+    },
+    "datasource": {
+     "type": "loki",
+     "uid": "loki-mgmt"
+    },
+    "options": {
+     "showTime": true,
+     "wrapLogMessage": true,
+     "sortOrder": "Descending",
+     "enableLogDetails": true,
+     "dedupStrategy": "none"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "expr": "{cluster=\"development\",namespace=~\"kube-system|electgo-cron\"} |~ `(?i)(error|fail|fatal)`",
+      "datasource": {
+       "type": "loki",
+       "uid": "loki-mgmt"
+      },
+      "queryType": "range"
+     }
+    ]
+   }
+  ],
+  "schemaVersion": 39,
+  "editable": true
+ },
+ "meta": {
+  "generated": "2026-06-12 by gen_dev_dashboards.py"
+ }
+}
