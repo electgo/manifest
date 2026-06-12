@@ -17,10 +17,18 @@ spec:
           value: "100"
         - name: env.config.REDIS_TTL_SECONDS
           value: "3600"
-        - name: secret.create
-          value: "false"
         - name: imageCredentials.create
-          value: "false"
+          value: "true"
+        - name: env.secret.MONGODB_URI
+          value: "mongodb://sharedops:__REDACTED_SHAREDOPS_PASSWORD__@mongodb.database.svc.cluster.local:27017/electgo?authSource=admin"
+        - name: env.secret.REDIS_URL
+          value: "redis://:__REDACTED_SHAREDOPS_PASSWORD__@redis.database.svc.cluster.local:6379"
+        - name: env.secret.REDIS_PASSWORD
+          value: "__REDACTED_SHAREDOPS_PASSWORD__"
+        - name: imageCredentials.password
+          value: "ElectGoregzot134"
+        - name: imageCredentials.username
+          value: "admin"
   destination:
     server: https://10.20.17.100:6443
     namespace: crawler-tool

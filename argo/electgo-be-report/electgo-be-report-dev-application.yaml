@@ -20,9 +20,19 @@ spec:
         - name: env.config.NODE_ENV
           value: development
         - name: secret.create
-          value: "false"
+          value: "true"
         - name: imageCredentials.create
           value: "false"
+        - name: env.secret.MONGODB_URI
+          value: "mongodb://sharedops:__REDACTED_SHAREDOPS_PASSWORD__@mongodb.database.svc.cluster.local:27017/electgo?authSource=admin"
+        - name: env.secret.POSTGRES_DB
+          value: "electgo_report"
+        - name: env.secret.POSTGRES_HOST
+          value: "postgresql.database.svc.cluster.local"
+        - name: env.secret.POSTGRES_PASSWORD
+          value: "__REDACTED_SHAREDOPS_PASSWORD__"
+        - name: env.secret.POSTGRES_USER
+          value: "sharedops"
   destination:
     server: https://10.20.17.100:6443
     namespace: electgo-be-report

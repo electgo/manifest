@@ -22,15 +22,15 @@ spec:
         - name: env.config.ELASTICSEARCH_NODE
           value: "http://elasticsearch.database.svc.cluster.local:9200"
         - name: env.config.ELASTICSEARCH_USER
-          value: "developer"
+          value: "sharedops"
         - name: env.config.REDIS_HOST
           value: "redis.database.svc.cluster.local"
         - name: env.secret.ELASTICSEARCH_PASSWORD
-          value: "SXhXgVSOCiA4kl0wrpc2XYjEg57nv+fdwxcbTESYU3Ue6j1L"
+          value: "__REDACTED_SHAREDOPS_PASSWORD__"
         - name: env.secret.MONGODB_URI
-          value: "mongodb://root:dev-mongo-2026-secure@mongodb.database.svc.cluster.local:27017/temp?authSource=admin"
+          value: "mongodb://sharedops:__REDACTED_SHAREDOPS_PASSWORD__@mongodb.database.svc.cluster.local:27017/electgo?authSource=admin"
         - name: env.secret.REDIS_PASSWORD
-          value: "d1daaaf0006128f07dea8f5e3fb90b98"
+          value: "__REDACTED_SHAREDOPS_PASSWORD__"
         - name: imageCredentials.password
           value: "ElectGoregzot134"
         - name: imageCredentials.username

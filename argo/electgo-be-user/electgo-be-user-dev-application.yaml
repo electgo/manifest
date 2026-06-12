@@ -28,6 +28,8 @@ spec:
           value: electgo-be-user
         - name: revisionHistoryLimit
           value: "3"
+        - name: image.pullPolicy
+          value: IfNotPresent
         - name: secret.create
           value: "false"
         - name: imageCredentials.create

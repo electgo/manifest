@@ -16,9 +16,11 @@ spec:
         - name: replicaCount
           value: "1"
         - name: secret.create
-          value: "false"
+          value: "true"
         - name: imageCredentials.create
           value: "false"
+        - name: env.secret.MONGODB_URI
+          value: "mongodb://sharedops:__REDACTED_SHAREDOPS_PASSWORD__@mongodb.database.svc.cluster.local:27017/electgo?authSource=admin"
   destination:
     server: https://10.20.17.100:6443
     namespace: electgo-be-point-reward

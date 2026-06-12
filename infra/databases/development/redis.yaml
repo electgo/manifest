@@ -45,7 +45,7 @@ metadata:
   namespace: database
 stringData:
   username: default
-  password: d1daaaf0006128f07dea8f5e3fb90b98
+  password: __REDACTED_SHAREDOPS_PASSWORD__
 type: Opaque
 ---
 apiVersion: apps/v1
