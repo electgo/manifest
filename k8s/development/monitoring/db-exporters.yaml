@@ -1,0 +1,145 @@
+# Dev database exporters: surface internal DB metrics (connections, query
+# rate, buffer pool, redis hits, pg commits, mongo ops) into Prometheus
+# mgmt via alloy-dev. The DB pods have no exporter sidecars, so these run
+# as standalone deployments scraping the in-cluster databases.
+# Credentials: secret db-exporter-credentials (mysql/pg use scoped users
+# exporter; redis/mongo reuse existing creds). Scraped by alloy-dev via
+# the prometheus.io/scrape service annotation.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysqld-exporter
+  namespace: database
+  labels: {app: mysqld-exporter}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: mysqld-exporter}}
+  template:
+    metadata:
+      labels: {app: mysqld-exporter}
+    spec:
+      containers:
+        - name: exporter
+          image: prom/mysqld-exporter:v0.15.1
+          args: ["--config.my-cnf=/cfg/.my.cnf", "--collect.info_schema.processlist", "--collect.info_schema.innodb_metrics"]
+          ports: [{containerPort: 9104, name: metrics}]
+          volumeMounts: [{name: cfg, mountPath: /cfg, readOnly: true}]
+          resources: {requests: {cpu: 10m, memory: 32Mi}, limits: {memory: 64Mi}}
+      volumes:
+        - name: cfg
+          secret:
+            secretName: db-exporter-credentials
+            items: [{key: mysql-my-cnf, path: .my.cnf}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysqld-exporter
+  namespace: database
+  labels: {app: mysqld-exporter}
+  annotations: {prometheus.io/scrape: "true", prometheus.io/port: "9104"}
+spec:
+  selector: {app: mysqld-exporter}
+  ports: [{port: 9104, targetPort: 9104, name: metrics}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-exporter
+  namespace: database
+  labels: {app: postgres-exporter}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: postgres-exporter}}
+  template:
+    metadata:
+      labels: {app: postgres-exporter}
+    spec:
+      containers:
+        - name: exporter
+          image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+          env:
+            - name: DATA_SOURCE_NAME
+              valueFrom: {secretKeyRef: {name: db-exporter-credentials, key: pg-dsn}}
+          ports: [{containerPort: 9187, name: metrics}]
+          resources: {requests: {cpu: 10m, memory: 32Mi}, limits: {memory: 64Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-exporter
+  namespace: database
+  labels: {app: postgres-exporter}
+  annotations: {prometheus.io/scrape: "true", prometheus.io/port: "9187"}
+spec:
+  selector: {app: postgres-exporter}
+  ports: [{port: 9187, targetPort: 9187, name: metrics}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-exporter
+  namespace: database
+  labels: {app: redis-exporter}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: redis-exporter}}
+  template:
+    metadata:
+      labels: {app: redis-exporter}
+    spec:
+      containers:
+        - name: exporter
+          image: oliver006/redis_exporter:v1.62.0
+          env:
+            - name: REDIS_ADDR
+              value: redis://redis.database.svc:6379
+            - name: REDIS_PASSWORD
+              valueFrom: {secretKeyRef: {name: db-exporter-credentials, key: redis-password}}
+          ports: [{containerPort: 9121, name: metrics}]
+          resources: {requests: {cpu: 10m, memory: 32Mi}, limits: {memory: 64Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-exporter
+  namespace: database
+  labels: {app: redis-exporter}
+  annotations: {prometheus.io/scrape: "true", prometheus.io/port: "9121"}
+spec:
+  selector: {app: redis-exporter}
+  ports: [{port: 9121, targetPort: 9121, name: metrics}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-exporter
+  namespace: database
+  labels: {app: mongodb-exporter}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: mongodb-exporter}}
+  template:
+    metadata:
+      labels: {app: mongodb-exporter}
+    spec:
+      containers:
+        - name: exporter
+          image: percona/mongodb_exporter:0.41
+          args: ["--collect-all", "--compatible-mode", "--web.listen-address=:9216"]
+          env:
+            - name: MONGODB_URI
+              valueFrom: {secretKeyRef: {name: db-exporter-credentials, key: mongodb-uri}}
+          ports: [{containerPort: 9216, name: metrics}]
+          resources: {requests: {cpu: 10m, memory: 48Mi}, limits: {memory: 96Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-exporter
+  namespace: database
+  labels: {app: mongodb-exporter}
+  annotations: {prometheus.io/scrape: "true", prometheus.io/port: "9216"}
+spec:
+  selector: {app: mongodb-exporter}
+  ports: [{port: 9216, targetPort: 9216, name: metrics}]

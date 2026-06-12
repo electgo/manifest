@@ -488,74 +488,56 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (namespace)(kube_pod_status_phase{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\",phase=\"Running\"})",
-      "legendFormat": "pods running",
+      "expr": "label_replace(sum by (namespace)(kube_pod_status_phase{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\",phase=\"Running\"}), \"metric\", \"pods running\", \"__name__\", \".*\")",
       "datasource": {
        "type": "prometheus",
        "uid": "PBFA97CFB590B2093"
       },
-      "instant": true
+      "instant": true,
+      "range": false,
+      "format": "table"
      },
      {
       "refId": "B",
-      "expr": "sum by (namespace)(increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\"}[1h]))",
-      "legendFormat": "restarts 1h",
+      "expr": "label_replace(sum by (namespace)(round(increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\"}[1h]))), \"metric\", \"restarts 1h\", \"__name__\", \".*\")",
       "datasource": {
        "type": "prometheus",
        "uid": "PBFA97CFB590B2093"
       },
-      "instant": true
+      "instant": true,
+      "range": false,
+      "format": "table"
      },
      {
       "refId": "C",
-      "expr": "sum by (namespace)(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\",container!=\"\"}[5m]))",
-      "legendFormat": "CPU cores",
+      "expr": "label_replace(sum by (namespace)(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\",container!=\"\"}[5m])), \"metric\", \"CPU cores\", \"__name__\", \".*\")",
       "datasource": {
        "type": "prometheus",
        "uid": "PBFA97CFB590B2093"
       },
-      "instant": true
+      "instant": true,
+      "range": false,
+      "format": "table"
      },
      {
       "refId": "D",
-      "expr": "sum by (namespace)(container_memory_working_set_bytes{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\",container!=\"\"})",
-      "legendFormat": "memory",
+      "expr": "label_replace(sum by (namespace)(container_memory_working_set_bytes{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\",container!=\"\"}), \"metric\", \"memory bytes\", \"__name__\", \".*\")",
       "datasource": {
        "type": "prometheus",
        "uid": "PBFA97CFB590B2093"
       },
-      "instant": true
-     },
-     {
-      "refId": "E",
-      "datasource": {
-       "type": "loki",
-       "uid": "loki-mgmt"
-      },
       "instant": true,
-      "expr": "sum by (namespace)(rate({cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\"} |~ `(?i)(error|fatal|panic|exception)` [5m]))",
-      "legendFormat": "err/s 5m"
+      "range": false,
+      "format": "table"
      }
     ],
     "transformations": [
      {
-      "id": "joinByField",
+      "id": "joinByLabels",
       "options": {
-       "byField": "namespace",
-       "mode": "outer"
-      }
-     },
-     {
-      "id": "organize",
-      "options": {
-       "excludeByName": {
-        "Time": true,
-        "Time 1": true,
-        "Time 2": true,
-        "Time 3": true,
-        "Time 4": true,
-        "Time 5": true
-       }
+       "join": [
+        "namespace"
+       ]
       }
      }
     ],
@@ -603,37 +585,7 @@
       {
        "matcher": {
         "id": "byName",
-        "options": "pods running"
-       },
-       "properties": [
-        {
-         "id": "custom.cellOptions",
-         "value": {
-          "type": "color-text"
-         }
-        },
-        {
-         "id": "thresholds",
-         "value": {
-          "mode": "absolute",
-          "steps": [
-           {
-            "color": "red",
-            "value": null
-           },
-           {
-            "color": "green",
-            "value": 1
-           }
-          ]
-         }
-        }
-       ]
-      },
-      {
-       "matcher": {
-        "id": "byName",
-        "options": "memory"
+        "options": "memory bytes"
        },
        "properties": [
         {
@@ -651,44 +603,6 @@
         {
          "id": "decimals",
          "value": 3
-        }
-       ]
-      },
-      {
-       "matcher": {
-        "id": "byName",
-        "options": "err/s 5m"
-       },
-       "properties": [
-        {
-         "id": "custom.cellOptions",
-         "value": {
-          "type": "color-background"
-         }
-        },
-        {
-         "id": "thresholds",
-         "value": {
-          "mode": "absolute",
-          "steps": [
-           {
-            "color": "green",
-            "value": null
-           },
-           {
-            "color": "#EAB839",
-            "value": 0.1
-           },
-           {
-            "color": "red",
-            "value": 1
-           }
-          ]
-         }
-        },
-        {
-         "id": "decimals",
-         "value": 2
         }
        ]
       }
