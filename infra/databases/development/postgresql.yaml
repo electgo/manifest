@@ -18,7 +18,7 @@ metadata:
   name: postgresql-vpn
   namespace: database
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
     - name: postgresql
       port: 5432

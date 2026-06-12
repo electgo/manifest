@@ -21,7 +21,7 @@ metadata:
   name: elasticsearch-vpn
   namespace: database
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
     - name: http
       port: 9200

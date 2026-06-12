@@ -18,7 +18,7 @@ metadata:
   name: mongodb-vpn
   namespace: database
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
     - name: mongodb
       port: 27017
