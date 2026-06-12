@@ -309,15 +309,15 @@ spec:
                         condition: C
                         data:
                           - refId: A
-                            datasourceUid: prometheus
+                            datasourceUid: loki
                             relativeTimeRange:
                               from: 600
                               to: 0
                             model:
                               datasource:
-                                type: prometheus
-                                uid: prometheus
-                              expr: sum by (cluster, namespace) (increase(loki_process_custom_log_db_permission_errors_total{namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"}[10m]))
+                                type: loki
+                                uid: loki
+                              expr: sum by (cluster, namespace) (count_over_time({namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"} |~ "(?i)(access denied for user|denied for user|password authentication failed for user|role .* does not exist|ER_ACCESS_DENIED|ER_ACCESS_DENIED_ERROR|SQLSTATE\\[[^]]+\\].*access denied|permission denied (for|to) (database|schema|table|relation|sequence|create|role))" != "manifest cache hit" [10m]))
                               instant: true
                               intervalMs: 1000
                               maxDataPoints: 43200
@@ -364,15 +364,15 @@ spec:
                         condition: C
                         data:
                           - refId: A
-                            datasourceUid: prometheus
+                            datasourceUid: loki
                             relativeTimeRange:
                               from: 600
                               to: 0
                             model:
                               datasource:
-                                type: prometheus
-                                uid: prometheus
-                              expr: sum by (cluster, namespace) (increase(loki_process_custom_log_db_connection_errors_total{namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"}[10m]))
+                                type: loki
+                                uid: loki
+                              expr: sum by (cluster, namespace) (count_over_time({namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"} |~ "(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)" != "manifest cache hit" [10m]))
                               instant: true
                               intervalMs: 1000
                               maxDataPoints: 43200
@@ -419,15 +419,15 @@ spec:
                         condition: C
                         data:
                           - refId: A
-                            datasourceUid: prometheus
+                            datasourceUid: loki
                             relativeTimeRange:
                               from: 600
                               to: 0
                             model:
                               datasource:
-                                type: prometheus
-                                uid: prometheus
-                              expr: sum by (cluster, namespace) (rate(loki_process_custom_log_app_errors_total{namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"}[5m]))
+                                type: loki
+                                uid: loki
+                              expr: sum by (cluster, namespace) (rate({namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"} |~ "(?i)(error|fatal|panic|exception|traceback)" != "manifest cache hit" [5m]))
                               instant: true
                               intervalMs: 1000
                               maxDataPoints: 43200
@@ -830,46 +830,7 @@ spec:
                   clustering {
                     enabled = true
                   }
-                  forward_to = [loki.process.alerts.receiver]
-                }
-
-                // Error log lines -> Mimir counters for Grafana alerting.
-                // Logs pass through.
-                loki.process "alerts" {
                   forward_to = [loki.write.local.receiver]
-                  stage.match {
-                    selector = `{namespace=~".+"} |~ "(?i)(error|fatal|panic|exception|traceback)" != "manifest cache hit"`
-                    stage.metrics {
-                      metric.counter {
-                        name        = "log_app_errors_total"
-                        description = "count of error/fatal/panic log lines"
-                        action      = "inc"
-                        match_all   = true
-                      }
-                    }
-                  }
-                  stage.match {
-                    selector = `{namespace=~".+"} |~ "(?i)(access denied for user|denied for user|password authentication failed for user|role .* does not exist|ER_ACCESS_DENIED|ER_ACCESS_DENIED_ERROR|SQLSTATE\[[^]]+\].*access denied|permission denied (for|to) (database|schema|table|relation|sequence|create|role))" != "manifest cache hit"`
-                    stage.metrics {
-                      metric.counter {
-                        name        = "log_db_permission_errors_total"
-                        description = "count of permission/auth denied log lines"
-                        action      = "inc"
-                        match_all   = true
-                      }
-                    }
-                  }
-                  stage.match {
-                    selector = `{namespace=~".+"} |~ "(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)" != "manifest cache hit"`
-                    stage.metrics {
-                      metric.counter {
-                        name        = "log_db_connection_errors_total"
-                        description = "count of connection failure log lines"
-                        action      = "inc"
-                        match_all   = true
-                      }
-                    }
-                  }
                 }
 
                 loki.write "local" {
@@ -879,24 +840,6 @@ spec:
                   external_labels = {
                     cluster = "management",
                   }
-                }
-
-                prometheus.scrape "self_logmetrics" {
-                  targets    = [{"__address__" = "127.0.0.1:12345", job = "alloy-log-metrics"}]
-                  forward_to = [prometheus.relabel.keep_logmetrics.receiver]
-                }
-
-                prometheus.relabel "keep_logmetrics" {
-                  rule {
-                    source_labels = ["__name__"]
-                    regex         = "loki_process_custom_log_(app|db_permission|db_connection)_errors_total"
-                    action        = "keep"
-                  }
-                  rule {
-                    regex  = "pod|instance|container|component_id|component_path|job"
-                    action = "labeldrop"
-                  }
-                  forward_to = [prometheus.remote_write.logmetrics.receiver]
                 }
 
                 prometheus.remote_write "logmetrics" {
