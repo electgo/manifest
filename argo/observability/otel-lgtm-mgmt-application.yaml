@@ -55,10 +55,16 @@ spec:
             enabled: false
           kubeEtcd:
             enabled: false
+          coreDns:
+            enabled: false
+          kubeDns:
+            enabled: false
           nodeExporter:
             enabled: false
           grafana:
             defaultDashboardsEnabled: false
+            serviceMonitor:
+              enabled: false
             admin:
               existingSecret: grafana-admin
               userKey: admin-user
