@@ -33,3 +33,15 @@ spec:
       jqPathExpressions:
         - '.spec.template.spec.containers[]?.imagePullPolicy'
         - '.spec.template.spec.initContainers[]?.imagePullPolicy'
+    - group: ""
+      kind: Secret
+      name: database-sharedops-credentials
+      jsonPointers:
+        - /data/password
+        - /stringData/password
+    - group: ""
+      kind: Secret
+      name: database-redis-default-credentials
+      jsonPointers:
+        - /data/password
+        - /stringData/password
