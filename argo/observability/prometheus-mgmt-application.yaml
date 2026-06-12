@@ -231,6 +231,11 @@ spec:
           alertmanagerSpec:
             nodeSelector:
               workload: observe
+            # Mount the gmail SMTP secret (reused from Grafana) so the
+            # config below can reference the password by file, never in
+            # plaintext values.
+            secrets:
+              - grafana-smtp-credentials
             storage:
               volumeClaimTemplate:
                 spec:
@@ -238,6 +243,34 @@ spec:
                   resources:
                     requests:
                       storage: 5Gi
+          config:
+            global:
+              resolve_timeout: 5m
+              smtp_smarthost: smtp.gmail.com:587
+              smtp_from: ptdigitalsolusigrup@gmail.com
+              smtp_auth_username: ptdigitalsolusigrup@gmail.com
+              smtp_auth_password_file: /etc/alertmanager/secrets/grafana-smtp-credentials/password
+              smtp_require_tls: true
+            route:
+              receiver: electgo-email
+              group_by: ["alertname", "cluster", "namespace"]
+              group_wait: 30s
+              group_interval: 5m
+              repeat_interval: 12h
+              routes:
+                - receiver: "null"
+                  matchers:
+                    - alertname = "Watchdog"
+            receivers:
+              - name: "null"
+              - name: electgo-email
+                email_configs:
+                  - to: yusoof.sh@dsg.id, chesa.nur@dsg.id
+                    send_resolved: true
+            inhibit_rules:
+              - source_matchers: ["severity = critical"]
+                target_matchers: ["severity =~ warning|info"]
+                equal: ["alertname", "cluster", "namespace"]
           ingress:
             enabled: true
             ingressClassName: traefik
