@@ -670,6 +670,7 @@ spec:
           grafana:
             sidecar:
               datasources:
+                enabled: false
                 defaultDatasourceEnabled: false
           loki:
             persistence:
