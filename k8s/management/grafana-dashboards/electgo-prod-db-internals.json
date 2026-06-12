@@ -1,10 +1,10 @@
 {
  "dashboard": {
-  "uid": "electgo-dev-db-internals",
-  "title": "ElectGo Development / Database Internals",
+  "uid": "electgo-prod-db-internals",
+  "title": "ElectGo Production / Database Internals",
   "tags": [
    "electgo",
-   "development",
+   "production",
    "database"
   ],
   "timezone": "browser",
@@ -39,7 +39,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -73,11 +73,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "mysql_up{cluster=\"development\"}",
+      "expr": "mysql_up{cluster=\"production\"}",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -94,7 +94,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -128,11 +128,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "pg_up{cluster=\"development\"}",
+      "expr": "pg_up{cluster=\"production\"}",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -149,7 +149,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -183,11 +183,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "redis_up{cluster=\"development\"}",
+      "expr": "redis_up{cluster=\"production\"}",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -204,7 +204,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -238,11 +238,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "mongodb_up{cluster=\"development\"}",
+      "expr": "mongodb_up{cluster=\"production\"}",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -259,7 +259,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -289,11 +289,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "mysql_global_status_threads_connected{cluster=\"development\"}",
+      "expr": "mysql_global_status_threads_connected{cluster=\"production\"}",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -310,7 +310,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -340,11 +340,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(pg_stat_database_numbackends{cluster=\"development\"})",
+      "expr": "sum(pg_stat_database_numbackends{cluster=\"production\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -361,7 +361,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -391,11 +391,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "redis_connected_clients{cluster=\"development\"}",
+      "expr": "redis_connected_clients{cluster=\"production\"}",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -412,7 +412,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -442,11 +442,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(mongodb_ss_connections{cluster=\"development\",conn_type=\"current\"})",
+      "expr": "sum(mongodb_ss_connections{cluster=\"production\",conn_type=\"current\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -476,7 +476,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -502,29 +502,29 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "mysql_global_status_threads_connected{cluster=\"development\"}",
+      "expr": "mysql_global_status_threads_connected{cluster=\"production\"}",
       "legendFormat": "connected",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      },
      {
       "refId": "B",
-      "expr": "mysql_global_status_max_used_connections{cluster=\"development\"}",
+      "expr": "mysql_global_status_max_used_connections{cluster=\"production\"}",
       "legendFormat": "max used",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      },
      {
       "refId": "C",
-      "expr": "mysql_global_variables_max_connections{cluster=\"development\"}",
+      "expr": "mysql_global_variables_max_connections{cluster=\"production\"}",
       "legendFormat": "limit",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -541,7 +541,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -567,20 +567,20 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "rate(mysql_global_status_queries{cluster=\"development\"}[5m])",
+      "expr": "rate(mysql_global_status_queries{cluster=\"production\"}[5m])",
       "legendFormat": "queries/s",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      },
      {
       "refId": "B",
-      "expr": "rate(mysql_global_status_slow_queries{cluster=\"development\"}[5m])",
+      "expr": "rate(mysql_global_status_slow_queries{cluster=\"production\"}[5m])",
       "legendFormat": "slow/s",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -597,7 +597,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -623,11 +623,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "mysql_global_status_buffer_pool_pages{cluster=\"development\"}",
+      "expr": "mysql_global_status_buffer_pool_pages{cluster=\"production\"}",
       "legendFormat": "{{state}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -657,7 +657,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -683,11 +683,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "pg_stat_database_numbackends{cluster=\"development\",datname!~\"template.*|postgres\"}",
+      "expr": "pg_stat_database_numbackends{cluster=\"production\",datname!~\"template.*|postgres\"}",
       "legendFormat": "{{datname}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -704,7 +704,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -730,20 +730,20 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(rate(pg_stat_database_xact_commit{cluster=\"development\"}[5m]))",
+      "expr": "sum(rate(pg_stat_database_xact_commit{cluster=\"production\"}[5m]))",
       "legendFormat": "commit/s",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      },
      {
       "refId": "B",
-      "expr": "sum(rate(pg_stat_database_xact_rollback{cluster=\"development\"}[5m]))",
+      "expr": "sum(rate(pg_stat_database_xact_rollback{cluster=\"production\"}[5m]))",
       "legendFormat": "rollback/s",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -760,7 +760,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -786,20 +786,20 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(rate(pg_stat_database_tup_fetched{cluster=\"development\"}[5m]))",
+      "expr": "sum(rate(pg_stat_database_tup_fetched{cluster=\"production\"}[5m]))",
       "legendFormat": "fetched/s",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      },
      {
       "refId": "B",
-      "expr": "sum(rate(pg_stat_database_tup_returned{cluster=\"development\"}[5m]))",
+      "expr": "sum(rate(pg_stat_database_tup_returned{cluster=\"production\"}[5m]))",
       "legendFormat": "returned/s",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -829,7 +829,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -855,11 +855,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "redis_connected_clients{cluster=\"development\"}",
+      "expr": "redis_connected_clients{cluster=\"production\"}",
       "legendFormat": "clients",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -876,7 +876,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -902,20 +902,20 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "rate(redis_keyspace_hits_total{cluster=\"development\"}[5m])",
+      "expr": "rate(redis_keyspace_hits_total{cluster=\"production\"}[5m])",
       "legendFormat": "hits/s",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      },
      {
       "refId": "B",
-      "expr": "rate(redis_keyspace_misses_total{cluster=\"development\"}[5m])",
+      "expr": "rate(redis_keyspace_misses_total{cluster=\"production\"}[5m])",
       "legendFormat": "misses/s",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -932,7 +932,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -958,20 +958,20 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "redis_memory_used_bytes{cluster=\"development\"}",
+      "expr": "redis_memory_used_bytes{cluster=\"production\"}",
       "legendFormat": "used",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      },
      {
       "refId": "B",
-      "expr": "redis_memory_max_bytes{cluster=\"development\"}",
+      "expr": "redis_memory_max_bytes{cluster=\"production\"}",
       "legendFormat": "max",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -1001,7 +1001,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -1027,11 +1027,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "mongodb_ss_connections{cluster=\"development\"}",
+      "expr": "mongodb_ss_connections{cluster=\"production\"}",
       "legendFormat": "{{conn_type}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -1048,7 +1048,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -1074,11 +1074,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "rate(mongodb_ss_opcounters{cluster=\"development\"}[5m])",
+      "expr": "rate(mongodb_ss_opcounters{cluster=\"production\"}[5m])",
       "legendFormat": "{{legacy_op_type}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -1095,7 +1095,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -1121,11 +1121,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "rate(mongodb_ss_metrics_document{cluster=\"development\"}[5m])",
+      "expr": "rate(mongodb_ss_metrics_document{cluster=\"production\"}[5m])",
       "legendFormat": "{{doc_op_type}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -1135,6 +1135,6 @@
   "editable": true
  },
  "meta": {
-  "generated": "2026-06-12"
+  "generated": "2026-06-12 from electgo-dev-db-internals.json production variant"
  }
 }

@@ -20,21 +20,174 @@ spec:
             tolerations:
               - operator: Exists
             priorityClassName: system-node-critical
+            volumes:
+              extra:
+                - name: rootfs
+                  hostPath:
+                    path: /
+                - name: procfs
+                  hostPath:
+                    path: /proc
+                - name: sysfs
+                  hostPath:
+                    path: /sys
           alloy:
             clustering:
               enabled: true
+            extraEnv:
+              - name: NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: spec.nodeName
+            mounts:
+              extra:
+                - name: rootfs
+                  mountPath: /host/root
+                  readOnly: true
+                - name: procfs
+                  mountPath: /host/proc
+                  readOnly: true
+                - name: sysfs
+                  mountPath: /host/sys
+                  readOnly: true
             resources:
               requests:
                 cpu: 50m
                 memory: 128Mi
               limits:
-                memory: 256Mi
+                memory: 512Mi
             configMap:
               content: |
                 logging {
                   level = "warn"
                 }
 
+                // ---------- metrics: kubelet + cadvisor ----------
+                discovery.kubernetes "nodes" {
+                  role = "node"
+                }
+
+                // Drop heavy control-plane histogram buckets when present;
+                // they are high-cardinality and not useful for app dashboards.
+                prometheus.relabel "drop_heavy" {
+                  rule {
+                    source_labels = ["__name__"]
+                    regex         = "(apiserver_request_duration_seconds_bucket|apiserver_request_sli_duration_seconds_bucket|apiserver_request_body_size_bytes_bucket|apiserver_watch_list_duration_seconds_bucket|apiserver_response_sizes_bucket|etcd_request_duration_seconds_bucket)"
+                    action        = "drop"
+                  }
+                  forward_to = [prometheus.remote_write.mgmt.receiver]
+                }
+
+                prometheus.scrape "kubelet" {
+                  targets           = discovery.kubernetes.nodes.targets
+                  scheme            = "https"
+                  bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                  tls_config {
+                    insecure_skip_verify = true
+                  }
+                  clustering {
+                    enabled = true
+                  }
+                  forward_to = [prometheus.relabel.drop_heavy.receiver]
+                }
+
+                prometheus.scrape "cadvisor" {
+                  targets           = discovery.kubernetes.nodes.targets
+                  scheme            = "https"
+                  metrics_path      = "/metrics/cadvisor"
+                  bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                  tls_config {
+                    insecure_skip_verify = true
+                  }
+                  clustering {
+                    enabled = true
+                  }
+                  forward_to = [prometheus.remote_write.mgmt.receiver]
+                }
+
+                // ---------- metrics: kube-state-metrics ----------
+                prometheus.scrape "ksm" {
+                  targets = [{ "__address__" = "ksm-kube-state-metrics.monitoring.svc:8080" }]
+                  clustering {
+                    enabled = true
+                  }
+                  forward_to = [prometheus.remote_write.mgmt.receiver]
+                }
+
+                // ---------- metrics: node (embedded node-exporter) ----------
+                prometheus.exporter.unix "node" {
+                  procfs_path = "/host/proc"
+                  sysfs_path  = "/host/sys"
+                  rootfs_path = "/host/root"
+                }
+
+                discovery.relabel "node" {
+                  targets = prometheus.exporter.unix.node.targets
+                  rule {
+                    target_label = "instance"
+                    replacement  = sys.env("NODE_NAME")
+                  }
+                }
+
+                prometheus.scrape "node" {
+                  targets    = discovery.relabel.node.output
+                  forward_to = [prometheus.remote_write.mgmt.receiver]
+                }
+
+                // ---------- metrics: annotated services (DB exporters) ----------
+                discovery.kubernetes "svc" {
+                  role = "service"
+                }
+
+                discovery.relabel "annotated_svc" {
+                  targets = discovery.kubernetes.svc.targets
+                  rule {
+                    source_labels = ["__meta_kubernetes_service_annotation_prometheus_io_scrape"]
+                    regex         = "true"
+                    action        = "keep"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_service_annotation_prometheus_io_port"]
+                    regex         = ".+"
+                    action        = "keep"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_service_annotation_prometheus_io_port"]
+                    target_label  = "__tmp_port"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_service_cluster_ip", "__tmp_port"]
+                    separator     = ":"
+                    target_label  = "__address__"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_namespace"]
+                    target_label  = "namespace"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_service_name"]
+                    target_label  = "job"
+                  }
+                }
+
+                prometheus.scrape "annotated_svc" {
+                  targets = discovery.relabel.annotated_svc.output
+                  clustering {
+                    enabled = true
+                  }
+                  forward_to = [prometheus.remote_write.mgmt.receiver]
+                }
+
+                prometheus.remote_write "mgmt" {
+                  endpoint {
+                    url = "http://prometheus-mgmt-rw.monitoring.svc:9090/api/v1/write"
+                  }
+                  external_labels = {
+                    cluster = "production",
+                  }
+                }
+
+                // ---------- logs ----------
                 discovery.kubernetes "pods" {
                   role = "pod"
                 }
@@ -81,13 +234,15 @@ spec:
                   forward_to = [loki.process.alerts.receiver]
                 }
 
-                // Error log lines -> Prometheus counters, shipped to mgmt
-                // Prometheus (email Alertmanager + electgo.logs rules) via
-                // the mgmt-ingest-bridge. Logs still go to loki-prod.
+                // Turn error log lines into Prometheus counters so the
+                // existing email Alertmanager (via mgmt Prometheus rules)
+                // can alert on app errors and DB permission/connection
+                // errors. Logs still pass through to Loki unchanged.
                 loki.process "alerts" {
-                  forward_to = [loki.write.local.receiver]
+                  forward_to = [loki.write.mgmt.receiver]
+
                   stage.match {
-                    selector = "{namespace=~\".+\"} |~ \"(?i)(error|fatal|panic|exception|traceback)\""
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(error|fatal|panic|exception|traceback)\" != \"manifest cache hit\""
                     stage.metrics {
                       metric.counter {
                         name        = "log_app_errors_total"
@@ -97,8 +252,9 @@ spec:
                       }
                     }
                   }
+
                   stage.match {
-                    selector = "{namespace=~\".+\"} |~ \"(?i)(permission denied|access denied|authentication failed|auth failed|not authorized|password authentication failed|denied for user|access denied for user|role .* does not exist|ER_ACCESS_DENIED)\""
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(permission denied|access denied|authentication failed|auth failed|not authorized|password authentication failed|denied for user|access denied for user|role .* does not exist|ER_ACCESS_DENIED)\" != \"manifest cache hit\""
                     stage.metrics {
                       metric.counter {
                         name        = "log_db_permission_errors_total"
@@ -108,8 +264,9 @@ spec:
                       }
                     }
                   }
+
                   stage.match {
-                    selector = "{namespace=~\".+\"} |~ \"(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)\""
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)\" != \"manifest cache hit\""
                     stage.metrics {
                       metric.counter {
                         name        = "log_db_connection_errors_total"
@@ -121,15 +278,17 @@ spec:
                   }
                 }
 
-                loki.write "local" {
+                loki.write "mgmt" {
                   endpoint {
-                    url = "http://loki-gateway.monitoring.svc/loki/api/v1/push"
+                    url = "http://loki-mgmt.monitoring.svc:3100/loki/api/v1/push"
                   }
                   external_labels = {
                     cluster = "production",
                   }
                 }
 
+                // Scrape Alloy's own endpoint, keep only the log-derived
+                // counters, and remote-write them so Prometheus rules fire.
                 prometheus.scrape "self_logmetrics" {
                   targets    = [{"__address__" = "127.0.0.1:12345", job = "alloy-log-metrics"}]
                   forward_to = [prometheus.relabel.keep_logmetrics.receiver]
@@ -145,16 +304,7 @@ spec:
                     regex  = "pod|instance|container|component_id|component_path|job"
                     action = "labeldrop"
                   }
-                  forward_to = [prometheus.remote_write.logmetrics.receiver]
-                }
-
-                prometheus.remote_write "logmetrics" {
-                  endpoint {
-                    url = "http://prometheus-mgmt-rw.monitoring.svc:9090/api/v1/write"
-                  }
-                  external_labels = {
-                    cluster = "production",
-                  }
+                  forward_to = [prometheus.remote_write.mgmt.receiver]
                 }
     - repoURL: https://prometheus-community.github.io/helm-charts
       chart: kube-state-metrics
@@ -162,11 +312,6 @@ spec:
       helm:
         releaseName: ksm
         values: |
-          prometheus:
-            monitor:
-              enabled: true
-              additionalLabels:
-                release: kps
           metricLabelsAllowlist:
             - pods=[*]
             - deployments=[*]
@@ -182,4 +327,5 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
+      - CreateNamespace=true
       - ServerSideApply=true

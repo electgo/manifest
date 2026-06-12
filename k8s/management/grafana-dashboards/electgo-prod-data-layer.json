@@ -1,10 +1,10 @@
 {
  "dashboard": {
-  "uid": "electgo-dev-data-layer",
-  "title": "ElectGo Development / Data Layer",
+  "uid": "electgo-prod-data-layer",
+  "title": "ElectGo Production / Data Layer",
   "tags": [
    "electgo",
-   "development",
+   "production",
    "database"
   ],
   "timezone": "browser",
@@ -39,7 +39,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -69,11 +69,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(kube_statefulset_status_replicas_ready{cluster=\"development\",namespace=\"database\"})",
+      "expr": "sum(kube_statefulset_status_replicas_ready{cluster=\"production\",namespace=\"database\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -90,7 +90,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -120,11 +120,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(kube_pod_status_phase{cluster=\"development\",namespace=\"database\",phase=\"Running\"})",
+      "expr": "sum(kube_pod_status_phase{cluster=\"production\",namespace=\"database\",phase=\"Running\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -141,7 +141,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -179,11 +179,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace=\"database\"}[1h]))",
+      "expr": "sum(increase(kube_pod_container_status_restarts_total{cluster=\"production\",namespace=\"database\"}[1h]))",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -200,7 +200,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -230,11 +230,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace=\"database\",container!=\"\"}[5m]))",
+      "expr": "sum(rate(container_cpu_usage_seconds_total{cluster=\"production\",namespace=\"database\",container!=\"\"}[5m]))",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -251,7 +251,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -280,11 +280,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(container_memory_working_set_bytes{cluster=\"development\",namespace=\"database\",container!=\"\"})",
+      "expr": "sum(container_memory_working_set_bytes{cluster=\"production\",namespace=\"database\",container!=\"\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -301,7 +301,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -339,11 +339,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "max(100*kubelet_volume_stats_used_bytes{cluster=\"development\",namespace=\"database\"}/kubelet_volume_stats_capacity_bytes{cluster=\"development\",namespace=\"database\"})",
+      "expr": "max(100*kubelet_volume_stats_used_bytes{cluster=\"production\",namespace=\"database\"}/kubelet_volume_stats_capacity_bytes{cluster=\"production\",namespace=\"database\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -373,7 +373,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -399,11 +399,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (pod)(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace=\"database\",container!=\"\"}[5m]))",
+      "expr": "sum by (pod)(rate(container_cpu_usage_seconds_total{cluster=\"production\",namespace=\"database\",container!=\"\"}[5m]))",
       "legendFormat": "{{pod}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -421,7 +421,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -447,11 +447,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (pod)(container_memory_working_set_bytes{cluster=\"development\",namespace=\"database\",container!=\"\"})",
+      "expr": "sum by (pod)(container_memory_working_set_bytes{cluster=\"production\",namespace=\"database\",container!=\"\"})",
       "legendFormat": "{{pod}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -469,7 +469,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -517,11 +517,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "100*kubelet_volume_stats_used_bytes{cluster=\"development\",namespace=\"database\"}/kubelet_volume_stats_capacity_bytes{cluster=\"development\",namespace=\"database\"}",
+      "expr": "100*kubelet_volume_stats_used_bytes{cluster=\"production\",namespace=\"database\"}/kubelet_volume_stats_capacity_bytes{cluster=\"production\",namespace=\"database\"}",
       "legendFormat": "{{persistentvolumeclaim}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -552,7 +552,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -578,11 +578,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (pod)(increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace=\"database\"}[1h]))",
+      "expr": "sum by (pod)(increase(kube_pod_container_status_restarts_total{cluster=\"production\",namespace=\"database\"}[1h]))",
       "legendFormat": "{{pod}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -600,7 +600,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -626,11 +626,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "kubelet_volume_stats_available_bytes{cluster=\"development\",namespace=\"database\"}",
+      "expr": "kubelet_volume_stats_available_bytes{cluster=\"production\",namespace=\"database\"}",
       "legendFormat": "{{persistentvolumeclaim}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -648,7 +648,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -674,21 +674,21 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(rate(container_network_receive_bytes_total{cluster=\"development\",namespace=\"database\"}[5m]))",
+      "expr": "sum(rate(container_network_receive_bytes_total{cluster=\"production\",namespace=\"database\"}[5m]))",
       "legendFormat": "rx",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      },
      {
       "refId": "B",
-      "expr": "-sum(rate(container_network_transmit_bytes_total{cluster=\"development\",namespace=\"database\"}[5m]))",
+      "expr": "-sum(rate(container_network_transmit_bytes_total{cluster=\"production\",namespace=\"database\"}[5m]))",
       "legendFormat": "tx",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -706,7 +706,7 @@
     },
     "datasource": {
      "type": "loki",
-     "uid": "loki-mgmt"
+     "uid": "loki"
     },
     "options": {
      "showTime": true,
@@ -718,10 +718,10 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "{cluster=\"development\",namespace=\"database\"} |~ `(?i)(error|warn|fatal|fail|slow)`",
+      "expr": "{cluster=\"production\",namespace=\"database\"} |~ `(?i)(error|warn|fatal|fail|slow)`",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      }
@@ -732,6 +732,6 @@
   "editable": true
  },
  "meta": {
-  "generated": "2026-06-12 gen_dev_v2.py"
+  "generated": "2026-06-12 from electgo-dev-data-layer.json production variant"
  }
 }

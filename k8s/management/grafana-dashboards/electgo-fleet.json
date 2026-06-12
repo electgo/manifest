@@ -1,7 +1,7 @@
 {
  "dashboard": {
   "uid": "electgo-fleet",
-  "title": "ElectGo Fleet Overview",
+  "title": "Fleet Overview",
   "tags": [
    "electgo",
    "fleet"

@@ -1,10 +1,10 @@
 {
  "dashboard": {
-  "uid": "electgo-dev-app-detail",
-  "title": "ElectGo Development / App Detail",
+  "uid": "electgo-prod-app-detail",
+  "title": "ElectGo Production / App Detail",
   "tags": [
    "electgo",
-   "development",
+   "production",
    "apps"
   ],
   "timezone": "browser",
@@ -18,7 +18,7 @@
     {
      "name": "project",
      "type": "custom",
-     "query": "product : n8n|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich, marketplace : crawler-tool|electgo-backroom-fe|electgo-be-point-reward|electgo-be-product|electgo-be-report|electgo-be-sales|electgo-be-user|electgo-be-utils|electgo-frontend|electgo-seller-center, chatbot : etools-chatbot-be",
+     "query": "product : n8n|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich",
      "current": {
       "text": "product",
       "value": "n8n|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich"
@@ -31,16 +31,6 @@
        "selected": true,
        "text": "product",
        "value": "n8n|pim-bucket-upload|pim-chatbot|pim-master|pim-partners-bundling|pim-sku-finder|pim-websocket|product-ai-enrich"
-      },
-      {
-       "selected": false,
-       "text": "marketplace",
-       "value": "crawler-tool|electgo-backroom-fe|electgo-be-point-reward|electgo-be-product|electgo-be-report|electgo-be-sales|electgo-be-user|electgo-be-utils|electgo-frontend|electgo-seller-center"
-      },
-      {
-       "selected": false,
-       "text": "chatbot",
-       "value": "etools-chatbot-be"
       }
      ]
     },
@@ -49,10 +39,10 @@
      "type": "query",
      "datasource": {
       "type": "prometheus",
-      "uid": "PBFA97CFB590B2093"
+      "uid": "prometheus"
      },
      "refresh": 2,
-     "query": "label_values(kube_pod_info{cluster=\"development\",namespace=~\"${project:raw}\"}, namespace)",
+     "query": "label_values(kube_pod_info{cluster=\"production\",namespace=~\"${project:raw}\"}, namespace)",
      "current": {
       "text": "pim-master",
       "value": "pim-master"
@@ -66,10 +56,10 @@
      "type": "query",
      "datasource": {
       "type": "prometheus",
-      "uid": "PBFA97CFB590B2093"
+      "uid": "prometheus"
      },
      "refresh": 2,
-     "query": "label_values(kube_pod_info{cluster=\"development\",namespace=\"$app\"}, pod)",
+     "query": "label_values(kube_pod_info{cluster=\"production\",namespace=\"$app\"}, pod)",
      "current": {
       "text": "All",
       "value": ".*"
@@ -84,10 +74,10 @@
      "type": "query",
      "datasource": {
       "type": "prometheus",
-      "uid": "PBFA97CFB590B2093"
+      "uid": "prometheus"
      },
      "refresh": 2,
-     "query": "label_values(kube_pod_container_info{cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container!=\"\"}, container)",
+     "query": "label_values(kube_pod_container_info{cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container!=\"\"}, container)",
      "current": {
       "text": "All",
       "value": ".*"
@@ -112,7 +102,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -142,11 +132,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(kube_pod_status_phase{cluster=\"development\",namespace=\"$app\",phase=\"Running\"})",
+      "expr": "sum(kube_pod_status_phase{cluster=\"production\",namespace=\"$app\",phase=\"Running\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -163,7 +153,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -197,11 +187,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(kube_pod_status_phase{cluster=\"development\",namespace=\"$app\",phase=~\"Pending|Failed|Unknown\"})",
+      "expr": "sum(kube_pod_status_phase{cluster=\"production\",namespace=\"$app\",phase=~\"Pending|Failed|Unknown\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -218,7 +208,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -256,11 +246,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace=\"$app\"}[1h]))",
+      "expr": "sum(increase(kube_pod_container_status_restarts_total{cluster=\"production\",namespace=\"$app\"}[1h]))",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -277,7 +267,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -307,11 +297,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace=\"$app\",container!=\"\"}[5m]))",
+      "expr": "sum(rate(container_cpu_usage_seconds_total{cluster=\"production\",namespace=\"$app\",container!=\"\"}[5m]))",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -328,7 +318,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -357,11 +347,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(container_memory_working_set_bytes{cluster=\"development\",namespace=\"$app\",container!=\"\"})",
+      "expr": "sum(container_memory_working_set_bytes{cluster=\"production\",namespace=\"$app\",container!=\"\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -378,7 +368,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -416,11 +406,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "100*sum(container_memory_working_set_bytes{cluster=\"development\",namespace=\"$app\",container!=\"\"})/sum(kube_pod_container_resource_limits{cluster=\"development\",namespace=\"$app\",resource=\"memory\"})",
+      "expr": "100*sum(container_memory_working_set_bytes{cluster=\"production\",namespace=\"$app\",container!=\"\"})/sum(kube_pod_container_resource_limits{cluster=\"production\",namespace=\"$app\",resource=\"memory\"})",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -437,7 +427,7 @@
     },
     "datasource": {
      "type": "loki",
-     "uid": "loki-mgmt"
+     "uid": "loki"
     },
     "fieldConfig": {
      "defaults": {
@@ -475,11 +465,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(count_over_time({cluster=\"development\",namespace=\"$app\"} |~ `(?i)(error|fatal|panic|exception)` [5m]))",
+      "expr": "sum(count_over_time({cluster=\"production\",namespace=\"$app\"} |~ `(?i)(error|fatal|panic|exception)` [5m]))",
       "instant": true,
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       }
      }
     ]
@@ -496,7 +486,7 @@
     },
     "datasource": {
      "type": "loki",
-     "uid": "loki-mgmt"
+     "uid": "loki"
     },
     "fieldConfig": {
      "defaults": {
@@ -525,11 +515,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(bytes_rate({cluster=\"development\",namespace=\"$app\"}[5m]))",
+      "expr": "sum(bytes_rate({cluster=\"production\",namespace=\"$app\"}[5m]))",
       "instant": true,
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       }
      }
     ]
@@ -559,7 +549,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -585,21 +575,21 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (pod)(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace=\"$app\",container!=\"\"}[5m]))",
+      "expr": "sum by (pod)(rate(container_cpu_usage_seconds_total{cluster=\"production\",namespace=\"$app\",container!=\"\"}[5m]))",
       "legendFormat": "{{pod}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      },
      {
       "refId": "B",
-      "expr": "sum(kube_pod_container_resource_limits{cluster=\"development\",namespace=\"$app\",resource=\"cpu\"})",
+      "expr": "sum(kube_pod_container_resource_limits{cluster=\"production\",namespace=\"$app\",resource=\"cpu\"})",
       "legendFormat": "limit",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -617,7 +607,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -643,21 +633,21 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (pod)(container_memory_working_set_bytes{cluster=\"development\",namespace=\"$app\",container!=\"\"})",
+      "expr": "sum by (pod)(container_memory_working_set_bytes{cluster=\"production\",namespace=\"$app\",container!=\"\"})",
       "legendFormat": "{{pod}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      },
      {
       "refId": "B",
-      "expr": "sum(kube_pod_container_resource_limits{cluster=\"development\",namespace=\"$app\",resource=\"memory\"})",
+      "expr": "sum(kube_pod_container_resource_limits{cluster=\"production\",namespace=\"$app\",resource=\"memory\"})",
       "legendFormat": "limit",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -675,7 +665,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -701,21 +691,21 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum(rate(container_network_receive_bytes_total{cluster=\"development\",namespace=\"$app\"}[5m]))",
+      "expr": "sum(rate(container_network_receive_bytes_total{cluster=\"production\",namespace=\"$app\"}[5m]))",
       "legendFormat": "rx",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      },
      {
       "refId": "B",
-      "expr": "-sum(rate(container_network_transmit_bytes_total{cluster=\"development\",namespace=\"$app\"}[5m]))",
+      "expr": "-sum(rate(container_network_transmit_bytes_total{cluster=\"production\",namespace=\"$app\"}[5m]))",
       "legendFormat": "tx",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -746,7 +736,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -772,11 +762,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (pod)(increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace=\"$app\"}[1h]))",
+      "expr": "sum by (pod)(increase(kube_pod_container_status_restarts_total{cluster=\"production\",namespace=\"$app\"}[1h]))",
       "legendFormat": "{{pod}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -794,7 +784,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -823,11 +813,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (phase)(kube_pod_status_phase{cluster=\"development\",namespace=\"$app\"})",
+      "expr": "sum by (phase)(kube_pod_status_phase{cluster=\"production\",namespace=\"$app\"})",
       "legendFormat": "{{phase}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -845,7 +835,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -871,11 +861,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (reason)(kube_pod_container_status_waiting_reason{cluster=\"development\",namespace=\"$app\"}) > 0",
+      "expr": "sum by (reason)(kube_pod_container_status_waiting_reason{cluster=\"production\",namespace=\"$app\"}) > 0",
       "legendFormat": "{{reason}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -906,7 +896,7 @@
     },
     "datasource": {
      "type": "loki",
-     "uid": "loki-mgmt"
+     "uid": "loki"
     },
     "fieldConfig": {
      "defaults": {
@@ -932,11 +922,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (container)(bytes_rate({cluster=\"development\",namespace=\"$app\"}[5m]))",
+      "expr": "sum by (container)(bytes_rate({cluster=\"production\",namespace=\"$app\"}[5m]))",
       "legendFormat": "{{container}}",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      }
@@ -954,7 +944,7 @@
     },
     "datasource": {
      "type": "loki",
-     "uid": "loki-mgmt"
+     "uid": "loki"
     },
     "fieldConfig": {
      "defaults": {
@@ -980,11 +970,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (container)(count_over_time({cluster=\"development\",namespace=\"$app\"} |~ `(?i)(error|fatal|panic|exception)` [5m]))",
+      "expr": "sum by (container)(count_over_time({cluster=\"production\",namespace=\"$app\"} |~ `(?i)(error|fatal|panic|exception)` [5m]))",
       "legendFormat": "{{container}}",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      }
@@ -1002,7 +992,7 @@
     },
     "datasource": {
      "type": "loki",
-     "uid": "loki-mgmt"
+     "uid": "loki"
     },
     "options": {
      "showTime": true,
@@ -1014,10 +1004,10 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "{cluster=\"development\",namespace=\"$app\"} |~ `(?i)(error|warn|fatal|panic|exception)`",
+      "expr": "{cluster=\"production\",namespace=\"$app\"} |~ `(?i)(error|warn|fatal|panic|exception)`",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      }
@@ -1048,7 +1038,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -1068,12 +1058,12 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "kube_pod_info{cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\"}",
+      "expr": "kube_pod_info{cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\"}",
       "format": "table",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ],
@@ -1119,7 +1109,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -1172,32 +1162,32 @@
     "targets": [
      {
       "refId": "info",
-      "expr": "kube_pod_container_info{cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\",container!=\"\"}",
+      "expr": "kube_pod_container_info{cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\",container!=\"\"}",
       "format": "table",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      },
      {
       "refId": "ready",
-      "expr": "kube_pod_container_status_ready{cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\",container!=\"\"}",
+      "expr": "kube_pod_container_status_ready{cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\",container!=\"\"}",
       "format": "table",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      },
      {
       "refId": "restart",
-      "expr": "increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\",container!=\"\"}[1h])",
+      "expr": "increase(kube_pod_container_status_restarts_total{cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\",container!=\"\"}[1h])",
       "format": "table",
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ],
@@ -1252,7 +1242,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -1278,11 +1268,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (pod,container)(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\",container!=\"\"}[5m]))",
+      "expr": "sum by (pod,container)(rate(container_cpu_usage_seconds_total{cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\",container!=\"\"}[5m]))",
       "legendFormat": "{{pod}} / {{container}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -1300,7 +1290,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -1326,11 +1316,11 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "sum by (pod,container)(container_memory_working_set_bytes{cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\",container!=\"\"})",
+      "expr": "sum by (pod,container)(container_memory_working_set_bytes{cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\",container!=\"\"})",
       "legendFormat": "{{pod}} / {{container}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
@@ -1348,7 +1338,7 @@
     },
     "datasource": {
      "type": "loki",
-     "uid": "loki-mgmt"
+     "uid": "loki"
     },
     "fieldConfig": {
      "defaults": {
@@ -1375,31 +1365,31 @@
     "targets": [
      {
       "refId": "5xx",
-      "expr": "sum(count_over_time({cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(^|[^0-9])5[0-9][0-9]([^0-9]|$)` [5m]))",
+      "expr": "sum(count_over_time({cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(^|[^0-9])5[0-9][0-9]([^0-9]|$)` [5m]))",
       "legendFormat": "5xx/status 5xx",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      },
      {
       "refId": "4xx",
-      "expr": "sum(count_over_time({cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(^|[^0-9])4[0-9][0-9]([^0-9]|$)` [5m]))",
+      "expr": "sum(count_over_time({cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(^|[^0-9])4[0-9][0-9]([^0-9]|$)` [5m]))",
       "legendFormat": "4xx/status 4xx",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      },
      {
       "refId": "slow",
-      "expr": "sum(count_over_time({cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(slow|timeout|timed out|deadline|latency|duration)` [5m]))",
+      "expr": "sum(count_over_time({cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(slow|timeout|timed out|deadline|latency|duration)` [5m]))",
       "legendFormat": "slow/timeout",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      }
@@ -1417,7 +1407,7 @@
     },
     "datasource": {
      "type": "loki",
-     "uid": "loki-mgmt"
+     "uid": "loki"
     },
     "fieldConfig": {
      "defaults": {
@@ -1444,41 +1434,41 @@
     "targets": [
      {
       "refId": "db",
-      "expr": "sum(count_over_time({cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(mysql|postgres|database|sqlstate|connection refused|too many connections|deadlock)` [5m]))",
+      "expr": "sum(count_over_time({cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(mysql|postgres|database|sqlstate|connection refused|too many connections|deadlock)` [5m]))",
       "legendFormat": "db/connectivity",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      },
      {
       "refId": "search",
-      "expr": "sum(count_over_time({cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(elastic|elasticsearch|opensearch|index_not_found|mapper_parsing|search_phase_execution)` [5m]))",
+      "expr": "sum(count_over_time({cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(elastic|elasticsearch|opensearch|index_not_found|mapper_parsing|search_phase_execution)` [5m]))",
       "legendFormat": "search/indexing",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      },
      {
       "refId": "queue",
-      "expr": "sum(count_over_time({cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(kafka|redis|queue|broker|consumer|producer|offset)` [5m]))",
+      "expr": "sum(count_over_time({cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(kafka|redis|queue|broker|consumer|producer|offset)` [5m]))",
       "legendFormat": "queue/broker",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      },
      {
       "refId": "auth",
-      "expr": "sum(count_over_time({cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(unauthorized|forbidden|jwt|token|oauth|zitadel|permission)` [5m]))",
+      "expr": "sum(count_over_time({cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(unauthorized|forbidden|jwt|token|oauth|zitadel|permission)` [5m]))",
       "legendFormat": "auth/permission",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      }
@@ -1496,7 +1486,7 @@
     },
     "datasource": {
      "type": "loki",
-     "uid": "loki-mgmt"
+     "uid": "loki"
     },
     "options": {
      "showTime": true,
@@ -1508,10 +1498,10 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "{cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"}",
+      "expr": "{cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"}",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      }
@@ -1529,7 +1519,7 @@
     },
     "datasource": {
      "type": "loki",
-     "uid": "loki-mgmt"
+     "uid": "loki"
     },
     "options": {
      "showTime": true,
@@ -1541,10 +1531,10 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "{cluster=\"development\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(error|warn|fatal|panic|exception|failed|timeout|refused|unauthorized|forbidden)`",
+      "expr": "{cluster=\"production\",namespace=\"$app\",pod=~\"${pod:raw}\",container=~\"${container:raw}\"} |~ `(?i)(error|warn|fatal|panic|exception|failed|timeout|refused|unauthorized|forbidden)`",
       "datasource": {
        "type": "loki",
-       "uid": "loki-mgmt"
+       "uid": "loki"
       },
       "queryType": "range"
      }
@@ -1555,6 +1545,6 @@
   "editable": true
  },
  "meta": {
-  "generated": "2026-06-12 gen_dev_v2.py"
+  "generated": "2026-06-12 from electgo-dev-app-detail production variant"
  }
 }

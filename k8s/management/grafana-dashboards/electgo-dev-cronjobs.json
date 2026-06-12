@@ -1,7 +1,7 @@
 {
  "dashboard": {
   "uid": "electgo-dev-cronjobs",
-  "title": "ElectGo Dev / Cronjobs & Jobs",
+  "title": "ElectGo Development / Cronjobs & Jobs",
   "tags": [
    "electgo",
    "development",
