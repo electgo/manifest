@@ -1,0 +1,997 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-lgtm-mgmt
+  namespace: argocd
+spec:
+  project: observability
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 86.1.0
+      helm:
+        releaseName: prometheus
+        values: |
+          defaultRules:
+            create: false
+          prometheus:
+            enabled: false
+          prometheusOperator:
+            enabled: false
+          kubeApiServer:
+            enabled: false
+          kubelet:
+            enabled: false
+          kubeProxy:
+            enabled: false
+          kubeControllerManager:
+            enabled: false
+          kubeScheduler:
+            enabled: false
+          kubeEtcd:
+            enabled: false
+          nodeExporter:
+            enabled: false
+          grafana:
+            defaultDashboardsEnabled: false
+            admin:
+              existingSecret: grafana-admin
+              userKey: admin-user
+              passwordKey: admin-password
+            defaultDashboardsTimezone: Asia/Jakarta
+            smtp:
+              existingSecret: grafana-smtp-credentials
+              userKey: user
+              passwordKey: password
+            alerting:
+              contactpoints.yaml:
+                apiVersion: 1
+                contactPoints:
+                  - orgId: 1
+                    name: electgo-production-email
+                    receivers:
+                      - uid: electgo-production-email
+                        type: email
+                        settings:
+                          addresses: yohannes@limkimhai.com.sg;yusoof.sh@dsg.id;chesa.nur@dsg.id
+                          singleEmail: false
+              policies.yaml:
+                apiVersion: 1
+                policies:
+                  - orgId: 1
+                    receiver: electgo-production-email
+                    group_by:
+                      - grafana_folder
+                      - alertname
+                    group_wait: 30s
+                    group_interval: 5m
+                    repeat_interval: 12h
+              rules.yaml:
+                apiVersion: 1
+                groups:
+                  - orgId: 1
+                    name: electgo-lgtm.rules
+                    folder: Alerting
+                    interval: 1m
+                    rules:
+                      - uid: rancher-downstream-cluster-not-ready
+                        title: RancherDownstreamClusterNotReady
+                        condition: C
+                        data:
+                          - refId: A
+                            datasourceUid: prometheus
+                            relativeTimeRange:
+                              from: 600
+                              to: 0
+                            model:
+                              datasource:
+                                type: prometheus
+                                uid: prometheus
+                              expr: kube_customresource_rancher_cluster_condition{condition="Ready"} == 0
+                              instant: true
+                              intervalMs: 1000
+                              maxDataPoints: 43200
+                              refId: A
+                          - refId: B
+                            datasourceUid: "-100"
+                            model:
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: A
+                              reducer: last
+                              refId: B
+                              type: reduce
+                          - refId: C
+                            datasourceUid: "-100"
+                            model:
+                              conditions:
+                                - evaluator:
+                                    params: [0]
+                                    type: gt
+                                  operator:
+                                    type: and
+                                  query:
+                                    params: [C]
+                                  reducer:
+                                    type: last
+                                  type: query
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: B
+                              refId: C
+                              type: threshold
+                        for: 10m
+                        noDataState: NoData
+                        execErrState: Error
+                        labels:
+                          severity: critical
+                        annotations:
+                          summary: Rancher downstream cluster not Ready
+                      - uid: rancher-downstream-cluster-metric-absent
+                        title: RancherDownstreamClusterMetricAbsent
+                        condition: C
+                        data:
+                          - refId: A
+                            datasourceUid: prometheus
+                            relativeTimeRange:
+                              from: 900
+                              to: 0
+                            model:
+                              datasource:
+                                type: prometheus
+                                uid: prometheus
+                              expr: absent(kube_customresource_rancher_cluster_condition{condition="Ready"})
+                              instant: true
+                              intervalMs: 1000
+                              maxDataPoints: 43200
+                              refId: A
+                          - refId: B
+                            datasourceUid: "-100"
+                            model:
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: A
+                              reducer: last
+                              refId: B
+                              type: reduce
+                          - refId: C
+                            datasourceUid: "-100"
+                            model:
+                              conditions:
+                                - evaluator:
+                                    params: [0]
+                                    type: gt
+                                  operator:
+                                    type: and
+                                  query:
+                                    params: [C]
+                                  reducer:
+                                    type: last
+                                  type: query
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: B
+                              refId: C
+                              type: threshold
+                        for: 15m
+                        noDataState: Alerting
+                        execErrState: Error
+                        labels:
+                          severity: warning
+                        annotations:
+                          summary: Rancher cluster condition metric absent
+                      - uid: node-disk-high
+                        title: NodeDiskHigh
+                        condition: C
+                        data:
+                          - refId: A
+                            datasourceUid: prometheus
+                            relativeTimeRange:
+                              from: 600
+                              to: 0
+                            model:
+                              datasource:
+                                type: prometheus
+                                uid: prometheus
+                              expr: 100 * (1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|rootfs"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|rootfs"})
+                              instant: true
+                              intervalMs: 1000
+                              maxDataPoints: 43200
+                              refId: A
+                          - refId: B
+                            datasourceUid: "-100"
+                            model:
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: A
+                              reducer: last
+                              refId: B
+                              type: reduce
+                          - refId: C
+                            datasourceUid: "-100"
+                            model:
+                              conditions:
+                                - evaluator:
+                                    params: [80]
+                                    type: gt
+                                  operator:
+                                    type: and
+                                  query:
+                                    params: [C]
+                                  reducer:
+                                    type: last
+                                  type: query
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: B
+                              refId: C
+                              type: threshold
+                        for: 10m
+                        noDataState: NoData
+                        execErrState: Error
+                        labels:
+                          severity: warning
+                        annotations:
+                          summary: Node root disk over 80 percent
+                      - uid: node-disk-critical
+                        title: NodeDiskCritical
+                        condition: C
+                        data:
+                          - refId: A
+                            datasourceUid: prometheus
+                            relativeTimeRange:
+                              from: 300
+                              to: 0
+                            model:
+                              datasource:
+                                type: prometheus
+                                uid: prometheus
+                              expr: 100 * (1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|rootfs"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|rootfs"})
+                              instant: true
+                              intervalMs: 1000
+                              maxDataPoints: 43200
+                              refId: A
+                          - refId: B
+                            datasourceUid: "-100"
+                            model:
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: A
+                              reducer: last
+                              refId: B
+                              type: reduce
+                          - refId: C
+                            datasourceUid: "-100"
+                            model:
+                              conditions:
+                                - evaluator:
+                                    params: [88]
+                                    type: gt
+                                  operator:
+                                    type: and
+                                  query:
+                                    params: [C]
+                                  reducer:
+                                    type: last
+                                  type: query
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: B
+                              refId: C
+                              type: threshold
+                        for: 5m
+                        noDataState: NoData
+                        execErrState: Error
+                        labels:
+                          severity: critical
+                        annotations:
+                          summary: Node root disk over 88 percent
+                      - uid: database-permission-errors
+                        title: DatabasePermissionErrors
+                        condition: C
+                        data:
+                          - refId: A
+                            datasourceUid: prometheus
+                            relativeTimeRange:
+                              from: 600
+                              to: 0
+                            model:
+                              datasource:
+                                type: prometheus
+                                uid: prometheus
+                              expr: sum by (cluster, namespace) (increase(loki_process_custom_log_db_permission_errors_total{namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"}[10m]))
+                              instant: true
+                              intervalMs: 1000
+                              maxDataPoints: 43200
+                              refId: A
+                          - refId: B
+                            datasourceUid: "-100"
+                            model:
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: A
+                              reducer: last
+                              refId: B
+                              type: reduce
+                          - refId: C
+                            datasourceUid: "-100"
+                            model:
+                              conditions:
+                                - evaluator:
+                                    params: [0]
+                                    type: gt
+                                  operator:
+                                    type: and
+                                  query:
+                                    params: [C]
+                                  reducer:
+                                    type: last
+                                  type: query
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: B
+                              refId: C
+                              type: threshold
+                        for: 0m
+                        noDataState: NoData
+                        execErrState: Error
+                        labels:
+                          severity: critical
+                        annotations:
+                          summary: Permission/auth denied errors detected
+                      - uid: database-connection-errors
+                        title: DatabaseConnectionErrors
+                        condition: C
+                        data:
+                          - refId: A
+                            datasourceUid: prometheus
+                            relativeTimeRange:
+                              from: 600
+                              to: 0
+                            model:
+                              datasource:
+                                type: prometheus
+                                uid: prometheus
+                              expr: sum by (cluster, namespace) (increase(loki_process_custom_log_db_connection_errors_total{namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"}[10m]))
+                              instant: true
+                              intervalMs: 1000
+                              maxDataPoints: 43200
+                              refId: A
+                          - refId: B
+                            datasourceUid: "-100"
+                            model:
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: A
+                              reducer: last
+                              refId: B
+                              type: reduce
+                          - refId: C
+                            datasourceUid: "-100"
+                            model:
+                              conditions:
+                                - evaluator:
+                                    params: [5]
+                                    type: gt
+                                  operator:
+                                    type: and
+                                  query:
+                                    params: [C]
+                                  reducer:
+                                    type: last
+                                  type: query
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: B
+                              refId: C
+                              type: threshold
+                        for: 5m
+                        noDataState: NoData
+                        execErrState: Error
+                        labels:
+                          severity: warning
+                        annotations:
+                          summary: Database connection failures detected
+                      - uid: app-error-spike
+                        title: AppErrorSpike
+                        condition: C
+                        data:
+                          - refId: A
+                            datasourceUid: prometheus
+                            relativeTimeRange:
+                              from: 600
+                              to: 0
+                            model:
+                              datasource:
+                                type: prometheus
+                                uid: prometheus
+                              expr: sum by (cluster, namespace) (rate(loki_process_custom_log_app_errors_total{namespace!~"kube-system|cattle-.*|monitoring|haproxy-ingress|kube-flannel|kube-node-lease|kube-public|local|cert-manager|nfs-subdir"}[5m]))
+                              instant: true
+                              intervalMs: 1000
+                              maxDataPoints: 43200
+                              refId: A
+                          - refId: B
+                            datasourceUid: "-100"
+                            model:
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: A
+                              reducer: last
+                              refId: B
+                              type: reduce
+                          - refId: C
+                            datasourceUid: "-100"
+                            model:
+                              conditions:
+                                - evaluator:
+                                    params: [1]
+                                    type: gt
+                                  operator:
+                                    type: and
+                                  query:
+                                    params: [C]
+                                  reducer:
+                                    type: last
+                                  type: query
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: B
+                              refId: C
+                              type: threshold
+                        for: 10m
+                        noDataState: NoData
+                        execErrState: Error
+                        labels:
+                          severity: warning
+                        annotations:
+                          summary: Elevated application error log rate
+                      - uid: certificate-expires-soon
+                        title: CertificateExpiresSoon
+                        condition: C
+                        data:
+                          - refId: A
+                            datasourceUid: prometheus
+                            relativeTimeRange:
+                              from: 3600
+                              to: 0
+                            model:
+                              datasource:
+                                type: prometheus
+                                uid: prometheus
+                              expr: (certmanager_certificate_expiration_timestamp_seconds - time()) / 86400
+                              instant: true
+                              intervalMs: 1000
+                              maxDataPoints: 43200
+                              refId: A
+                          - refId: B
+                            datasourceUid: "-100"
+                            model:
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: A
+                              reducer: last
+                              refId: B
+                              type: reduce
+                          - refId: C
+                            datasourceUid: "-100"
+                            model:
+                              conditions:
+                                - evaluator:
+                                    params: [21]
+                                    type: lt
+                                  operator:
+                                    type: and
+                                  query:
+                                    params: [C]
+                                  reducer:
+                                    type: last
+                                  type: query
+                              datasource:
+                                type: __expr__
+                                uid: "-100"
+                              expression: B
+                              refId: C
+                              type: threshold
+                        for: 1h
+                        noDataState: NoData
+                        execErrState: Error
+                        labels:
+                          severity: warning
+                        annotations:
+                          summary: Certificate expires soon
+            nodeSelector:
+              workload: data
+            tolerations:
+              - key: dedicated
+                value: data
+                effect: NoSchedule
+            persistence:
+              enabled: true
+              existingClaim: prometheus-grafana
+            sidecar:
+              datasources:
+                enabled: true
+                defaultDatasourceEnabled: false
+                alertmanager:
+                  enabled: false
+              dashboards:
+                provider:
+                  folder: Internals
+                  folderUid: afov2khfyadc0f
+                multicluster:
+                  global:
+                    enabled: true
+            prune: true
+            deleteDatasources:
+              - name: Alertmanager
+                orgId: 1
+            additionalDataSources:
+              - name: Prometheus
+                type: prometheus
+                uid: prometheus
+                url: http://mimir-gateway.monitoring.svc/prometheus
+                access: proxy
+                isDefault: true
+                jsonData:
+                  httpMethod: POST
+                  timeInterval: 15s
+              - name: Loki
+                type: loki
+                uid: loki
+                url: http://loki.monitoring.svc:3100
+                access: proxy
+                jsonData:
+                  maxLines: 5000
+              - name: Loki (mgmt)
+                type: loki
+                uid: loki-mgmt
+                url: http://loki.monitoring.svc:3100
+                access: proxy
+              - name: Tempo
+                type: tempo
+                uid: tempo
+                url: http://tempo.monitoring.svc:3200
+                access: proxy
+                jsonData:
+                  tracesToLogsV2:
+                    datasourceUid: loki
+                    tags:
+                      - cluster
+                      - namespace
+                      - pod
+                      - service.name
+                  tracesToMetrics:
+                    datasourceUid: prometheus
+              - name: CloudWatch
+                type: cloudwatch
+                uid: cloudwatch
+                jsonData:
+                  authType: default
+                  defaultRegion: ap-southeast-3
+            ingress:
+              enabled: true
+              ingressClassName: traefik
+              annotations:
+                cert-manager.io/cluster-issuer: letsencrypt-prod
+                traefik.ingress.kubernetes.io/router.entrypoints: websecure
+                traefik.ingress.kubernetes.io/router.tls: "true"
+              hosts:
+                - grafana.electgo.com
+              tls:
+                - secretName: grafana-electgo-com-tls
+                  hosts:
+                    - grafana.electgo.com
+            grafana.ini:
+              server:
+                root_url: https://grafana.electgo.com
+                serve_from_sub_path: false
+              security:
+                cookie_secure: true
+                strict_transport_security: true
+              analytics:
+                reporting_enabled: false
+                check_for_updates: false
+              users:
+                auto_assign_org_role: Viewer
+              auth.anonymous:
+                enabled: false
+              smtp:
+                enabled: true
+                host: smtp.gmail.com:587
+                user: ptdigitalsolusigrup@gmail.com
+                from_address: ptdigitalsolusigrup@gmail.com
+                from_name: ElectGo Grafana
+                startTLS_policy: MandatoryStartTLS
+          kubeStateMetrics:
+            enabled: false
+          alertmanager:
+            enabled: false
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki-stack
+      targetRevision: 2.10.3
+      helm:
+        releaseName: loki
+        values: |
+          grafana:
+            sidecar:
+              datasources:
+                defaultDatasourceEnabled: false
+          loki:
+            persistence:
+              enabled: true
+              storageClassName: gp3-encrypted
+              size: 50Gi
+            nodeSelector:
+              workload: observe
+            resources:
+              requests:
+                cpu: 200m
+                memory: 512Mi
+              limits:
+                cpu: "1"
+                memory: 1Gi
+          promtail:
+            enabled: false
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: mimir-distributed
+      targetRevision: 6.0.6
+      helm:
+        releaseName: mimir
+        values: |
+          global:
+            extraArgs:
+              - -config.expand-env=true
+            extraEnvFrom:
+              - secretRef:
+                  name: mimir-s3-credentials
+          mimir:
+            structuredConfig:
+              blocks_storage:
+                backend: s3
+                storage_prefix: electgo/observability/mimir/blocks
+                s3:
+                  bucket_name: ${MIMIR_S3_BUCKET}
+                  endpoint: s3.ap-southeast-3.amazonaws.com
+                  region: ap-southeast-3
+                  access_key_id: ${AWS_ACCESS_KEY_ID}
+                  secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+              alertmanager_storage:
+                backend: s3
+                storage_prefix: electgo/observability/mimir/alertmanager
+                s3:
+                  bucket_name: ${MIMIR_S3_BUCKET}
+                  endpoint: s3.ap-southeast-3.amazonaws.com
+                  region: ap-southeast-3
+                  access_key_id: ${AWS_ACCESS_KEY_ID}
+                  secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+              ruler_storage:
+                backend: s3
+                storage_prefix: electgo/observability/mimir/ruler
+                s3:
+                  bucket_name: ${MIMIR_S3_BUCKET}
+                  endpoint: s3.ap-southeast-3.amazonaws.com
+                  region: ap-southeast-3
+                  access_key_id: ${AWS_ACCESS_KEY_ID}
+                  secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+          alertmanager:
+            enabled: false
+          ruler:
+            enabled: false
+          minio:
+            enabled: false
+          ingester:
+            replicas: 1
+            zoneAwareReplication:
+              enabled: false
+          querier:
+            replicas: 1
+          query_frontend:
+            replicas: 1
+          store_gateway:
+            replicas: 1
+            zoneAwareReplication:
+              enabled: false
+          compactor:
+            replicas: 1
+          distributor:
+            replicas: 1
+          chunks-cache:
+            enabled: false
+          metadata-cache:
+            enabled: false
+          results-cache:
+            enabled: false
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: tempo
+      targetRevision: 1.24.4
+      helm:
+        releaseName: tempo
+        values: |
+          tempo:
+            reportingEnabled: false
+            metricsGenerator:
+              enabled: true
+              remoteWriteUrl: http://mimir-gateway.monitoring.svc/api/v1/push
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+          persistence:
+            enabled: true
+            storageClassName: gp3-encrypted
+            size: 20Gi
+          nodeSelector:
+            workload: observe
+          serviceMonitor:
+            enabled: false
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: alloy
+      targetRevision: 1.9.0
+      helm:
+        releaseName: alloy
+        values: |
+          controller:
+            type: daemonset
+            tolerations:
+              - operator: Exists
+          alloy:
+            clustering:
+              enabled: true
+            extraPorts:
+              - name: otlp-grpc
+                port: 4317
+                targetPort: 4317
+                protocol: TCP
+                appProtocol: grpc
+              - name: otlp-http
+                port: 4318
+                targetPort: 4318
+                protocol: TCP
+                appProtocol: http
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                memory: 256Mi
+            configMap:
+              content: |
+                logging {
+                  level = "warn"
+                }
+
+                discovery.kubernetes "pods" {
+                  role = "pod"
+                }
+
+                discovery.relabel "pod_logs" {
+                  targets = discovery.kubernetes.pods.targets
+                  rule {
+                    source_labels = ["__meta_kubernetes_pod_phase"]
+                    regex         = "Succeeded|Failed"
+                    action        = "drop"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_namespace"]
+                    target_label  = "namespace"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_pod_name"]
+                    target_label  = "pod"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_pod_container_name"]
+                    target_label  = "container"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+                    target_label  = "app"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+                    target_label  = "component"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+                    separator     = "/"
+                    target_label  = "job"
+                  }
+                }
+
+                loki.source.kubernetes "pods" {
+                  targets = discovery.relabel.pod_logs.output
+                  clustering {
+                    enabled = true
+                  }
+                  forward_to = [loki.process.alerts.receiver]
+                }
+
+                // Error log lines -> Mimir counters for Grafana alerting.
+                // Logs pass through.
+                loki.process "alerts" {
+                  forward_to = [loki.write.local.receiver]
+                  stage.match {
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(error|fatal|panic|exception|traceback)\" != \"manifest cache hit\""
+                    stage.metrics {
+                      metric.counter {
+                        name        = "log_app_errors_total"
+                        description = "count of error/fatal/panic log lines"
+                        action      = "inc"
+                        match_all   = true
+                      }
+                    }
+                  }
+                  stage.match {
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(access denied for user|denied for user|password authentication failed for user|role .* does not exist|ER_ACCESS_DENIED|ER_ACCESS_DENIED_ERROR|SQLSTATE\\[[^]]+\\].*access denied|permission denied (for|to) (database|schema|table|relation|sequence|create|role))\" != \"manifest cache hit\""
+                    stage.metrics {
+                      metric.counter {
+                        name        = "log_db_permission_errors_total"
+                        description = "count of permission/auth denied log lines"
+                        action      = "inc"
+                        match_all   = true
+                      }
+                    }
+                  }
+                  stage.match {
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(connection refused|could not connect|connection reset|too many connections|econnrefused|server closed the connection|connection timed out)\" != \"manifest cache hit\""
+                    stage.metrics {
+                      metric.counter {
+                        name        = "log_db_connection_errors_total"
+                        description = "count of connection failure log lines"
+                        action      = "inc"
+                        match_all   = true
+                      }
+                    }
+                  }
+                }
+
+                loki.write "local" {
+                  endpoint {
+                    url = "http://loki.monitoring.svc:3100/loki/api/v1/push"
+                  }
+                  external_labels = {
+                    cluster = "management",
+                  }
+                }
+
+                prometheus.scrape "self_logmetrics" {
+                  targets    = [{"__address__" = "127.0.0.1:12345", job = "alloy-log-metrics"}]
+                  forward_to = [prometheus.relabel.keep_logmetrics.receiver]
+                }
+
+                prometheus.relabel "keep_logmetrics" {
+                  rule {
+                    source_labels = ["__name__"]
+                    regex         = "loki_process_custom_log_(app|db_permission|db_connection)_errors_total"
+                    action        = "keep"
+                  }
+                  rule {
+                    regex  = "pod|instance|container|component_id|component_path|job"
+                    action = "labeldrop"
+                  }
+                  forward_to = [prometheus.remote_write.logmetrics.receiver]
+                }
+
+                prometheus.remote_write "logmetrics" {
+                  endpoint {
+                    url = "http://mimir-gateway.monitoring.svc/api/v1/push"
+                  }
+                  external_labels = {
+                    cluster = "management",
+                  }
+                }
+
+                // ---------- otlp: app metrics/logs/traces ----------
+                otelcol.receiver.otlp "apps" {
+                  grpc {
+                    endpoint = "0.0.0.0:4317"
+                  }
+                  http {
+                    endpoint = "0.0.0.0:4318"
+                  }
+                  output {
+                    metrics = [otelcol.processor.batch.apps.input]
+                    logs    = [otelcol.processor.batch.apps.input]
+                    traces  = [otelcol.processor.batch.apps.input]
+                  }
+                }
+
+                otelcol.processor.batch "apps" {
+                  output {
+                    metrics = [otelcol.exporter.prometheus.apps.input]
+                    logs    = [otelcol.exporter.loki.apps.input]
+                    traces  = [otelcol.exporter.otlp.tempo.input]
+                  }
+                }
+
+                otelcol.exporter.prometheus "apps" {
+                  forward_to = [prometheus.remote_write.logmetrics.receiver]
+                }
+
+                otelcol.exporter.loki "apps" {
+                  forward_to = [loki.write.local.receiver]
+                }
+
+                otelcol.exporter.otlp "tempo" {
+                  client {
+                    endpoint = "tempo.monitoring.svc:4317"
+                    tls {
+                      insecure = true
+                    }
+                  }
+                }
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-state-metrics
+      targetRevision: 7.4.0
+      helm:
+        releaseName: ksm
+        values: |
+          prometheus:
+            monitor:
+              enabled: true
+              additionalLabels:
+                release: prometheus
+          rbac:
+            extraRules:
+              - apiGroups: ["management.cattle.io"]
+                resources: ["clusters"]
+                verbs: ["list", "watch"]
+          customResourceState:
+            enabled: true
+            config:
+              kind: CustomResourceStateMetrics
+              spec:
+                resources:
+                  - groupVersionKind:
+                      group: management.cattle.io
+                      version: v3
+                      kind: Cluster
+                    labelsFromPath:
+                      cluster_id: [metadata, name]
+                      cluster_name: [spec, displayName]
+                    metrics:
+                      - name: rancher_cluster_condition
+                        help: Rancher cluster status conditions (1=True, 0=False)
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, conditions]
+                            labelsFromPath:
+                              condition: [type]
+                            valueFrom: [status]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+    - repoURL: https://github.com/electgo/manifest
+      targetRevision: main
+      path: k8s/management/monitoring

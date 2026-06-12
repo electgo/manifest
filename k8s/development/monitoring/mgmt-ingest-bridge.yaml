@@ -1,7 +1,5 @@
-# Bridge from dev cluster to mgmt ingest NodePorts (metrics remote-write
-# + loki push). Targets static mgmt node IPs; update the Endpoints when
-# mgmt nodes change (same caveat as the matomo-db and prod-grafana
-# bridges).
+# Bridge from dev cluster to mgmt ingest NodePorts.
+# Targets static mgmt node IPs; update Endpoints when mgmt nodes change.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -10,18 +8,18 @@ metadata:
 apiVersion: v1
 kind: Service
 metadata:
-  name: prometheus-mgmt-rw
+  name: mimir-mgmt
   namespace: monitoring
 spec:
   ports:
-    - name: http-web
-      port: 9090
-      targetPort: 30990
+    - name: http
+      port: 80
+      targetPort: 30991
 ---
 apiVersion: v1
 kind: Endpoints
 metadata:
-  name: prometheus-mgmt-rw
+  name: mimir-mgmt
   namespace: monitoring
 subsets:
   - addresses:
@@ -34,8 +32,8 @@ subsets:
       - ip: 10.20.16.206
       - ip: 10.20.30.185
     ports:
-      - name: http-web
-        port: 30990
+      - name: http
+        port: 30991
 ---
 apiVersion: v1
 kind: Service
@@ -66,3 +64,63 @@ subsets:
     ports:
       - name: http
         port: 30311
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo-mgmt-otlp-grpc
+  namespace: monitoring
+spec:
+  ports:
+    - name: grpc
+      port: 4317
+      targetPort: 30317
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: tempo-mgmt-otlp-grpc
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 10.20.20.47
+      - ip: 10.20.20.133
+      - ip: 10.20.24.139
+      - ip: 10.20.28.67
+      - ip: 10.20.17.172
+      - ip: 10.20.27.78
+      - ip: 10.20.16.206
+      - ip: 10.20.30.185
+    ports:
+      - name: grpc
+        port: 30317
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo-mgmt-otlp-http
+  namespace: monitoring
+spec:
+  ports:
+    - name: http
+      port: 4318
+      targetPort: 30318
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: tempo-mgmt-otlp-http
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 10.20.20.47
+      - ip: 10.20.20.133
+      - ip: 10.20.24.139
+      - ip: 10.20.28.67
+      - ip: 10.20.17.172
+      - ip: 10.20.27.78
+      - ip: 10.20.16.206
+      - ip: 10.20.30.185
+    ports:
+      - name: http
+        port: 30318

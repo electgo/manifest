@@ -1,11 +1,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: alloy-prod
+  name: otel-lgtm-dev
   namespace: argocd
 spec:
   destination:
-    name: production
+    name: development
     namespace: monitoring
   project: observability
   sources:
@@ -19,7 +19,6 @@ spec:
             type: daemonset
             tolerations:
               - operator: Exists
-            priorityClassName: system-node-critical
             volumes:
               extra:
                 - name: rootfs
@@ -34,6 +33,17 @@ spec:
           alloy:
             clustering:
               enabled: true
+            extraPorts:
+              - name: otlp-grpc
+                port: 4317
+                targetPort: 4317
+                protocol: TCP
+                appProtocol: grpc
+              - name: otlp-http
+                port: 4318
+                targetPort: 4318
+                protocol: TCP
+                appProtocol: http
             extraEnv:
               - name: NODE_NAME
                 valueFrom:
@@ -67,8 +77,9 @@ spec:
                   role = "node"
                 }
 
-                // Drop heavy control-plane histogram buckets when present;
-                // they are high-cardinality and not useful for app dashboards.
+                // k3s single-binary: the kubelet endpoint also exposes
+                // apiserver/etcd histograms. Drop the same heavy buckets the
+                // mgmt kps relabeling drops (~47% of series otherwise).
                 prometheus.relabel "drop_heavy" {
                   rule {
                     source_labels = ["__name__"]
@@ -180,10 +191,10 @@ spec:
 
                 prometheus.remote_write "mgmt" {
                   endpoint {
-                    url = "http://prometheus-mgmt-rw.monitoring.svc:9090/api/v1/write"
+                    url = "http://mimir-mgmt.monitoring.svc/api/v1/push"
                   }
                   external_labels = {
-                    cluster = "production",
+                    cluster = "development",
                   }
                 }
 
@@ -234,10 +245,9 @@ spec:
                   forward_to = [loki.process.alerts.receiver]
                 }
 
-                // Turn error log lines into Prometheus counters so the
-                // existing email Alertmanager (via mgmt Prometheus rules)
-                // can alert on app errors and DB permission/connection
-                // errors. Logs still pass through to Loki unchanged.
+                // Turn error log lines into Mimir counters for Grafana
+                // alerting on app errors and DB permission/connection errors.
+                // Logs still pass through to Loki unchanged.
                 loki.process "alerts" {
                   forward_to = [loki.write.mgmt.receiver]
 
@@ -254,7 +264,7 @@ spec:
                   }
 
                   stage.match {
-                    selector = "{namespace=~\".+\"} |~ \"(?i)(permission denied|access denied|authentication failed|auth failed|not authorized|password authentication failed|denied for user|access denied for user|role .* does not exist|ER_ACCESS_DENIED)\" != \"manifest cache hit\""
+                    selector = "{namespace=~\".+\"} |~ \"(?i)(access denied for user|denied for user|password authentication failed for user|role .* does not exist|ER_ACCESS_DENIED|ER_ACCESS_DENIED_ERROR|SQLSTATE\\[[^]]+\\].*access denied|permission denied (for|to) (database|schema|table|relation|sequence|create|role))\" != \"manifest cache hit\""
                     stage.metrics {
                       metric.counter {
                         name        = "log_db_permission_errors_total"
@@ -283,12 +293,12 @@ spec:
                     url = "http://loki-mgmt.monitoring.svc:3100/loki/api/v1/push"
                   }
                   external_labels = {
-                    cluster = "production",
+                    cluster = "development",
                   }
                 }
 
                 // Scrape Alloy's own endpoint, keep only the log-derived
-                // counters, and remote-write them so Prometheus rules fire.
+                // counters, and remote-write them so Grafana alerts fire.
                 prometheus.scrape "self_logmetrics" {
                   targets    = [{"__address__" = "127.0.0.1:12345", job = "alloy-log-metrics"}]
                   forward_to = [prometheus.relabel.keep_logmetrics.receiver]
@@ -305,6 +315,46 @@ spec:
                     action = "labeldrop"
                   }
                   forward_to = [prometheus.remote_write.mgmt.receiver]
+                }
+
+                // ---------- otlp: app metrics/logs/traces ----------
+                otelcol.receiver.otlp "apps" {
+                  grpc {
+                    endpoint = "0.0.0.0:4317"
+                  }
+                  http {
+                    endpoint = "0.0.0.0:4318"
+                  }
+                  output {
+                    metrics = [otelcol.processor.batch.apps.input]
+                    logs    = [otelcol.processor.batch.apps.input]
+                    traces  = [otelcol.processor.batch.apps.input]
+                  }
+                }
+
+                otelcol.processor.batch "apps" {
+                  output {
+                    metrics = [otelcol.exporter.prometheus.apps.input]
+                    logs    = [otelcol.exporter.loki.apps.input]
+                    traces  = [otelcol.exporter.otlp.tempo.input]
+                  }
+                }
+
+                otelcol.exporter.prometheus "apps" {
+                  forward_to = [prometheus.remote_write.mgmt.receiver]
+                }
+
+                otelcol.exporter.loki "apps" {
+                  forward_to = [loki.write.mgmt.receiver]
+                }
+
+                otelcol.exporter.otlp "tempo" {
+                  client {
+                    endpoint = "tempo-mgmt-otlp-grpc.monitoring.svc:4317"
+                    tls {
+                      insecure = true
+                    }
+                  }
                 }
     - repoURL: https://prometheus-community.github.io/helm-charts
       chart: kube-state-metrics
