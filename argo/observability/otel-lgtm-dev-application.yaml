@@ -309,6 +309,9 @@ spec:
               memory: 64Mi
             limits:
               memory: 128Mi
+    - repoURL: https://github.com/electgo/manifest
+      targetRevision: main
+      path: k8s/development/monitoring
   syncPolicy:
     automated:
       prune: true
