@@ -533,11 +533,29 @@
     ],
     "transformations": [
      {
-      "id": "joinByLabels",
+      "id": "labelsToFields",
       "options": {
-       "join": [
-        "namespace"
-       ]
+       "mode": "columns",
+       "valueLabel": "metric"
+      }
+     },
+     {
+      "id": "merge",
+      "options": {}
+     },
+     {
+      "id": "organize",
+      "options": {
+       "excludeByName": {
+        "Time": true
+       },
+       "indexByName": {
+        "namespace": 0,
+        "pods running": 1,
+        "restarts 1h": 2,
+        "CPU cores": 3,
+        "memory bytes": 4
+       }
       }
      }
     ],
