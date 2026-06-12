@@ -4,7 +4,7 @@ metadata:
   name: loki-mgmt
   namespace: argocd
 spec:
-  project: management
+  project: observability
   source:
     repoURL: https://grafana.github.io/helm-charts
     chart: loki-stack

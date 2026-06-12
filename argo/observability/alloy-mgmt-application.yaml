@@ -7,7 +7,7 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
-  project: management
+  project: observability
   sources:
     - repoURL: https://grafana.github.io/helm-charts
       chart: alloy

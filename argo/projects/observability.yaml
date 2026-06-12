@@ -33,6 +33,14 @@ spec:
       namespace: amazon-cloudwatch
     - name: development
       namespace: default
+    # management cluster (Argo in-cluster): prometheus-mgmt, loki-mgmt,
+    # alloy-mgmt live here so all observability apps share one project.
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
+    - server: https://kubernetes.default.svc
+      namespace: default
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
