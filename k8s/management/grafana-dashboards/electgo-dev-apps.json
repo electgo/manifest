@@ -39,7 +39,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -73,7 +73,7 @@
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -90,7 +90,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -124,7 +124,7 @@
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -141,7 +141,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -183,7 +183,7 @@
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -200,7 +200,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -234,7 +234,7 @@
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -251,7 +251,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -293,7 +293,7 @@
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -310,7 +310,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -344,7 +344,7 @@
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -361,7 +361,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -394,7 +394,7 @@
       "instant": true,
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       }
      }
     ]
@@ -491,7 +491,7 @@
       "expr": "label_replace(sum by (namespace)(kube_pod_status_phase{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\",phase=\"Running\"}), \"metric\", \"pods running\", \"__name__\", \".*\")",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": true,
       "range": false,
@@ -502,7 +502,7 @@
       "expr": "label_replace(sum by (namespace)(round(increase(kube_pod_container_status_restarts_total{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\"}[1h]))), \"metric\", \"restarts 1h\", \"__name__\", \".*\")",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": true,
       "range": false,
@@ -513,7 +513,7 @@
       "expr": "label_replace(sum by (namespace)(rate(container_cpu_usage_seconds_total{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\",container!=\"\"}[5m])), \"metric\", \"CPU cores\", \"__name__\", \".*\")",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": true,
       "range": false,
@@ -524,7 +524,7 @@
       "expr": "label_replace(sum by (namespace)(container_memory_working_set_bytes{cluster=\"development\",namespace!~\"kube-system|cattle-.*|cert-manager|kube-flannel|kube-node-lease|kube-public|monitoring|nfs-subdir|haproxy-ingress|local|default\",container!=\"\"}), \"metric\", \"memory bytes\", \"__name__\", \".*\")",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": true,
       "range": false,
@@ -661,7 +661,7 @@
     },
     "datasource": {
      "type": "prometheus",
-     "uid": "PBFA97CFB590B2093"
+     "uid": "prometheus"
     },
     "fieldConfig": {
      "defaults": {
@@ -691,7 +691,7 @@
       "legendFormat": "{{namespace}}",
       "datasource": {
        "type": "prometheus",
-       "uid": "PBFA97CFB590B2093"
+       "uid": "prometheus"
       },
       "instant": false
      }
