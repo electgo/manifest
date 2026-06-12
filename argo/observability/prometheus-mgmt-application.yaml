@@ -199,6 +199,34 @@ spec:
                     annotations:
                       summary: 'Rancher cluster condition metric absent'
                       description: 'kube-state-metrics customResourceState for management.cattle.io clusters not reporting. Alerting on downstream disconnect is blind.'
+          electgo-capacity:
+            groups:
+              - name: electgo.capacity
+                rules:
+                  - alert: NodeDiskHigh
+                    expr: 100 * (1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|rootfs"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|rootfs"}) > 80
+                    for: 10m
+                    labels:
+                      severity: warning
+                    annotations:
+                      summary: 'Node {{ $labels.instance }} ({{ $labels.cluster }}) root disk over 80 percent'
+                      description: 'Root filesystem at {{ $value | printf "%.0f" }} percent on {{ $labels.instance }}. Kubelet evicts pods at ~85 percent. Prune images or expand the volume.'
+                  - alert: NodeDiskCritical
+                    expr: 100 * (1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|rootfs"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|rootfs"}) > 88
+                    for: 5m
+                    labels:
+                      severity: critical
+                    annotations:
+                      summary: 'Node {{ $labels.instance }} ({{ $labels.cluster }}) root disk over 88 percent'
+                      description: 'Root filesystem at {{ $value | printf "%.0f" }} percent on {{ $labels.instance }}. Past the eviction threshold; pods are being evicted. Act now.'
+                  - alert: PrometheusTSDBFillingUp
+                    expr: prometheus_tsdb_storage_blocks_bytes / on(pod) kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=~"prometheus-.*"} > 0.8
+                    for: 30m
+                    labels:
+                      severity: warning
+                    annotations:
+                      summary: 'Prometheus TSDB volume over 80 percent'
+                      description: 'The Prometheus PVC is filling up. Expand it or lower retention before ingestion stalls.'
         alertmanager:
           alertmanagerSpec:
             nodeSelector:
