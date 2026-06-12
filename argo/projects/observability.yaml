@@ -26,6 +26,8 @@ spec:
     - name: development
       namespace: monitoring
     - name: development
+      namespace: database
+    - name: development
       namespace: kyverno
     - name: development
       namespace: kube-system
