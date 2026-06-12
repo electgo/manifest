@@ -63,6 +63,10 @@ spec:
             enabled: false
           grafana:
             defaultDashboardsEnabled: false
+            service:
+              annotations:
+                prometheus.io/scrape: "true"
+                prometheus.io/port: "80"
             serviceMonitor:
               enabled: false
             admin:

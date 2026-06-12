@@ -40,7 +40,7 @@
       "uid": "prometheus"
      },
      "enable": true,
-     "expr": "ALERTS{alertstate=\"firing\", severity=~\"critical|warning\"}",
+     "expr": "sum(grafana_alerting_alertmanager_alerts{state=\"active\"})",
      "iconColor": "red",
      "name": "Firing alerts",
      "tagKeys": "namespace,severity",

@@ -1429,8 +1429,8 @@
     "targets": [
      {
       "refId": "A",
-      "expr": "ALERTS{alertstate=\"firing\",alertname!=\"Watchdog\"}",
-      "legendFormat": "prod: {{alertname}} ({{severity}})",
+      "expr": "grafana_alerting_alertmanager_alerts{state=\"active\"}",
+      "legendFormat": "Grafana active alerts",
       "datasource": {
        "type": "prometheus",
        "uid": "prometheus"
@@ -1438,8 +1438,8 @@
      },
      {
       "refId": "B",
-      "expr": "ALERTS{alertstate=\"firing\",alertname!=\"Watchdog\"}",
-      "legendFormat": "{{cluster}}: {{alertname}} ({{severity}})",
+      "expr": "grafana_alerting_active_alerts",
+      "legendFormat": "Grafana firing alerts",
       "datasource": {
        "type": "prometheus",
        "uid": "prometheus"
