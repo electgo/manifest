@@ -15,8 +15,16 @@ spec:
         hostname: rancher.electgo.com
         replicas: 1
         bootstrapPassword: admin
-        nodeSelector:
-          workload: helper
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                - key: workload
+                  operator: In
+                  values:
+                  - helper
         ingress:
           tls:
             source: secret
