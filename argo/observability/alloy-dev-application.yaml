@@ -148,6 +148,11 @@ spec:
                   }
                   rule {
                     source_labels = ["__meta_kubernetes_service_annotation_prometheus_io_port"]
+                    regex         = ".+"
+                    action        = "keep"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_service_annotation_prometheus_io_port"]
                     target_label  = "__tmp_port"
                   }
                   rule {
