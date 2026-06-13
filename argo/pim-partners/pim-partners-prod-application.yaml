@@ -5,14 +5,6 @@ metadata:
   namespace: argocd
 spec:
   project: product
-  ignoreDifferences:
-    - group: ""
-      kind: Secret
-      name: pim-partners-bundling-secret
-      namespace: pim-partners-bundling
-      jsonPointers:
-        - /data
-        - /stringData
   source:
     repoURL: https://github.com/electgo/pim-partners-bundling
     targetRevision: main

@@ -6,13 +6,6 @@ metadata:
 spec:
   project: product
   ignoreDifferences:
-    - group: ""
-      kind: Secret
-      name: pim-chatbot-env
-      namespace: pim-chatbot
-      jsonPointers:
-        - /data
-        - /stringData
     - group: apps
       kind: Deployment
       name: pim-chatbot

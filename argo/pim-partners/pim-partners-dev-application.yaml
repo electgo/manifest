@@ -6,13 +6,6 @@ metadata:
 spec:
   project: product
   ignoreDifferences:
-    - group: ""
-      kind: Secret
-      name: pim-partners-bundling-secret
-      namespace: pim-partners-bundling
-      jsonPointers:
-        - /data
-        - /stringData
     - group: apps
       jsonPointers:
         - /spec/template/spec/nodeSelector

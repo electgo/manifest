@@ -5,14 +5,6 @@ metadata:
   namespace: argocd
 spec:
   project: product
-  ignoreDifferences:
-    - group: ""
-      kind: Secret
-      name: pim-bucket-upload-secret
-      namespace: pim-bucket-upload
-      jsonPointers:
-        - /data
-        - /stringData
   source:
     repoURL: https://github.com/electgo/pim-bucket-upload.git
     targetRevision: main
