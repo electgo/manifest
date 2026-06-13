@@ -6,13 +6,6 @@ metadata:
 spec:
   project: product
   ignoreDifferences:
-    - group: ""
-      kind: Secret
-      name: product-ai-enrich-secret
-      namespace: product-ai-enrich
-      jsonPointers:
-        - /data
-        - /stringData
     - group: apps
       kind: Deployment
       name: product-ai-enrich
